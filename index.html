@@ -10,13 +10,19 @@
       --bg: #ece8df;
       --panel: #fbfaf6;
       --panel-2: #f4f0e7;
+      --field: #fffefb;
       --ink: #23221f;
       --muted: #666157;
+      --label: #332f28;
       --border: #c8beb0;
+      --field-border: #b8ad9e;
       --shadow: rgba(32, 28, 22, 0.12);
       --danger: #8f2d2d;
       --danger-bg: #fff0f0;
       --focus: #1f5d7a;
+      --active-outline: rgba(20, 20, 20, 0.23);
+      --resizer: #d5ccbd;
+      --resizer-hover: #b8ad9e;
       --c1: #9a3412;
       --c1-bg: #fff3eb;
       --c2: #1d4f91;
@@ -35,7 +41,83 @@
       --c8-bg: #e9fbf8;
     }
 
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --bg: #15181d;
+        --panel: #1d2229;
+        --panel-2: #242b34;
+        --field: #101419;
+        --ink: #f3efe7;
+        --muted: #b9b0a4;
+        --label: #f4eadc;
+        --border: #46505c;
+        --field-border: #5b6673;
+        --shadow: rgba(0, 0, 0, 0.36);
+        --danger: #ff9a9a;
+        --danger-bg: #331c21;
+        --focus: #80c7ee;
+        --active-outline: rgba(244, 234, 220, 0.34);
+        --resizer: #343d48;
+        --resizer-hover: #566271;
+        --c1: #ffb48c;
+        --c1-bg: #3a251c;
+        --c2: #9fc8ff;
+        --c2-bg: #1c2a3e;
+        --c3: #91ddb9;
+        --c3-bg: #173427;
+        --c4: #dfa4f0;
+        --c4-bg: #33223a;
+        --c5: #f4ce66;
+        --c5-bg: #352d18;
+        --c6: #ff9fba;
+        --c6-bg: #3a1f2a;
+        --c7: #bbe27d;
+        --c7-bg: #253315;
+        --c8: #8ee2dc;
+        --c8-bg: #183533;
+      }
+    }
+
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #15181d;
+      --panel: #1d2229;
+      --panel-2: #242b34;
+      --field: #101419;
+      --ink: #f3efe7;
+      --muted: #b9b0a4;
+      --label: #f4eadc;
+      --border: #46505c;
+      --field-border: #5b6673;
+      --shadow: rgba(0, 0, 0, 0.36);
+      --danger: #ff9a9a;
+      --danger-bg: #331c21;
+      --focus: #80c7ee;
+      --active-outline: rgba(244, 234, 220, 0.34);
+      --resizer: #343d48;
+      --resizer-hover: #566271;
+      --c1: #ffb48c;
+      --c1-bg: #3a251c;
+      --c2: #9fc8ff;
+      --c2-bg: #1c2a3e;
+      --c3: #91ddb9;
+      --c3-bg: #173427;
+      --c4: #dfa4f0;
+      --c4-bg: #33223a;
+      --c5: #f4ce66;
+      --c5-bg: #352d18;
+      --c6: #ff9fba;
+      --c6-bg: #3a1f2a;
+      --c7: #bbe27d;
+      --c7-bg: #253315;
+      --c8: #8ee2dc;
+      --c8-bg: #183533;
+    }
+
     * { box-sizing: border-box; }
+
+    html, body { height: 100%; }
 
     body {
       margin: 0;
@@ -43,46 +125,24 @@
       color: var(--ink);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       line-height: 1.45;
+      overflow: hidden;
     }
 
     .app {
-      width: min(1180px, calc(100vw - 28px));
-      margin: 18px auto 26px;
-    }
-
-    header {
-      display: flex;
-      justify-content: space-between;
-      gap: 20px;
-      align-items: end;
-      margin-bottom: 12px;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: clamp(1.45rem, 2.4vw, 2.15rem);
-      letter-spacing: -0.03em;
-    }
-
-    .tagline {
-      margin: 3px 0 0;
-      color: var(--muted);
-      max-width: 760px;
-    }
-
-    .status-pill {
-      border: 1px solid var(--border);
-      background: var(--panel);
-      color: var(--muted);
-      padding: 6px 10px;
-      font: 0.82rem/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      white-space: nowrap;
-    }
-
-    .workbench {
+      width: 100%;
+      height: 100vh;
+      padding: 8px;
       display: grid;
-      grid-template-rows: auto minmax(310px, 40vh) minmax(270px, auto);
-      gap: 12px;
+      grid-template-rows: auto auto minmax(0, var(--workbench-main, 1fr)) 6px minmax(120px, var(--workbench-reference, 0.7fr));
+      gap: 8px;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      min-height: 42px;
     }
 
     .panel {
@@ -91,148 +151,163 @@
       box-shadow: 0 2px 10px var(--shadow);
     }
 
-    .spell-panel { padding: 14px; }
-
     label, .pane-title, .section-title {
       display: block;
       font-weight: 700;
-      color: #332f28;
-      margin-bottom: 7px;
-    }
-
-    .spell-row {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 10px;
-      align-items: center;
+      color: var(--label);
+      margin-bottom: 6px;
     }
 
     .prompt {
       font: 700 1rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       color: var(--muted);
+      padding-left: 4px;
     }
 
-    input, textarea, .output {
-      width: 100%;
-      border: 1px solid #b8ad9e;
-      background: #fffefb;
+    input, textarea, button, .output {
+      border: 1px solid var(--field-border);
+      background: var(--field);
       color: var(--ink);
       font: 1rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       border-radius: 0;
     }
 
-    input:focus, textarea:focus {
-      outline: 2px solid rgba(31, 93, 122, 0.3);
+    input, textarea, .output { width: 100%; }
+
+    button {
+      cursor: pointer;
+      padding: 8px 10px;
+      white-space: nowrap;
+    }
+
+    button:hover { border-color: var(--focus); }
+
+    input:focus, textarea:focus, button:focus-visible {
+      outline: 2px solid var(--focus);
       border-color: var(--focus);
     }
 
-    #sedSpell { padding: 10px 11px; }
+    #sedSpell { padding: 8px 10px; }
 
     .anatomy-wrap {
-      margin-top: 12px;
-      padding: 10px;
-      border: 1px dashed #b9ad9d;
+      min-height: 0;
+      padding: 7px 8px;
+      border: 1px dashed var(--border);
       background: var(--panel-2);
-    }
-
-    .anatomy-label {
-      margin: 0 0 8px;
-      color: var(--muted);
-      font-size: 0.86rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
+      overflow: auto;
     }
 
     .anatomy-strip {
       display: flex;
       flex-wrap: wrap;
-      gap: 7px;
-      min-height: 36px;
+      gap: 0.35rem;
       align-items: center;
     }
 
     .chunk {
       display: inline-flex;
       align-items: center;
-      min-height: 30px;
-      padding: 4px 8px;
+      min-height: 28px;
+      padding: 3px 8px;
       border: 2px solid currentColor;
       background: var(--chunk-bg);
       color: var(--chunk-color);
-      font: 700 0.95rem/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font: 700 0.92rem/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       cursor: default;
-      box-shadow: inset 0 -2px 0 rgba(0,0,0,0.06);
+      box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.08);
     }
 
-    .chunk.is-active,
-    .card.is-active {
-      outline: 3px solid rgba(20, 20, 20, 0.23);
+    .chunk.is-active, .card.is-active {
+      outline: 3px solid var(--active-outline);
       outline-offset: 2px;
       filter: saturate(1.2);
     }
 
     .io-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      grid-template-columns: minmax(0, var(--input-column, 1fr)) 6px minmax(0, var(--output-column, 1fr));
+      gap: 8px;
       min-height: 0;
     }
 
-    .io-pane {
+    .io-pane, .reference-pane {
       display: flex;
       flex-direction: column;
       min-width: 0;
       min-height: 0;
-      padding: 12px;
+      padding: 10px;
     }
 
     textarea, .output {
       flex: 1;
-      min-height: 245px;
-      padding: 12px;
+      min-height: 0;
+      padding: 10px;
       resize: none;
       white-space: pre-wrap;
       overflow: auto;
     }
 
-    .output { background: #fffefb; }
-
-    .splainer {
-      padding: 14px;
+    .row-resizer, .column-resizer {
+      background: var(--resizer);
+      border: 1px solid var(--border);
+      touch-action: none;
     }
 
-    .splainer-head {
+    .row-resizer {
+      height: 6px;
+      cursor: row-resize;
+    }
+
+    .column-resizer {
+      width: 6px;
+      cursor: col-resize;
+    }
+
+    .row-resizer:hover, .row-resizer.is-dragging,
+    .column-resizer:hover, .column-resizer.is-dragging {
+      background: var(--resizer-hover);
+    }
+
+    .reference-pane { overflow: hidden; }
+
+    .reference-head {
       display: flex;
       justify-content: space-between;
       gap: 16px;
       align-items: baseline;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
-    .splainer-head .hint {
+    .reference-head .hint {
       color: var(--muted);
-      font-size: 0.92rem;
+      font-size: 0.88rem;
+    }
+
+    .reference-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 2px;
     }
 
     .cards {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.5rem;
     }
 
     .card {
       border: 1px solid var(--border);
       border-left: 8px solid var(--chunk-color);
-      background: linear-gradient(90deg, var(--chunk-bg), #fffefb 34%);
-      padding: 11px 12px;
-      min-height: 118px;
+      background: linear-gradient(90deg, var(--chunk-bg), var(--field) 34%);
+      padding: 10px;
+      min-height: 112px;
     }
 
     .card-code {
       display: inline-block;
       color: var(--chunk-color);
-      background: #fffefb;
+      background: var(--field);
       border: 1px solid currentColor;
       padding: 3px 6px;
       font: 700 0.92rem/1.25 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -247,24 +322,24 @@
 
     .card p {
       margin: 0;
-      color: #3d3932;
+      color: var(--ink);
     }
 
     .message {
-      border: 1px solid #d6a2a2;
+      border: 1px solid var(--danger);
       border-left: 8px solid var(--danger);
       background: var(--danger-bg);
       color: var(--danger);
-      padding: 11px 12px;
+      padding: 9px 10px;
       font-weight: 700;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     .empty-note {
       color: var(--muted);
       border: 1px dashed var(--border);
       background: var(--panel-2);
-      padding: 13px;
+      padding: 10px;
     }
 
     .c1 { --chunk-color: var(--c1); --chunk-bg: var(--c1-bg); }
@@ -277,58 +352,58 @@
     .c8 { --chunk-color: var(--c8); --chunk-bg: var(--c8-bg); }
 
     @media (max-width: 780px) {
-      .app { width: min(100vw - 18px, 1180px); margin-top: 10px; }
-      header { display: block; }
-      .status-pill { display: inline-block; margin-top: 8px; }
-      .workbench { grid-template-rows: auto auto auto; }
-      .io-grid { grid-template-columns: 1fr; }
-      textarea, .output { min-height: 210px; }
-      .spell-row { grid-template-columns: 1fr; gap: 5px; }
+      body { overflow: auto; }
+      .app {
+        min-height: 100vh;
+        height: auto;
+        padding: 6px;
+        grid-template-rows: auto auto auto auto;
+      }
+      .toolbar { grid-template-columns: auto minmax(0, 1fr) auto; }
+      .io-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(220px, 38vh) minmax(220px, 38vh);
+      }
+      .column-resizer, .row-resizer { display: none; }
+      .reference-pane { min-height: 320px; }
     }
   </style>
 </head>
 <body>
-  <main class="app">
-    <header>
-      <div>
-        <h1>Sed Regex GUI</h1>
-        <p class="tagline">A local, single-file sed workbench: type a small sed spell, transform text live, and read the color-linked anatomy.</p>
-      </div>
-      <div class="status-pill">offline · no build · V1 subset</div>
-    </header>
+  <main class="app" id="app">
+    <div class="toolbar" aria-label="Sed command">
+      <label class="prompt" for="sedSpell">sed</label>
+      <input id="sedSpell" spellcheck="false" autocomplete="off" aria-describedby="anatomyStrip">
+      <button type="button" id="themeToggle" aria-label="Theme mode">auto</button>
+    </div>
 
-    <section class="workbench" aria-label="Sed learning workbench">
-      <div class="panel spell-panel">
-        <label for="sedSpell">Sed Spell</label>
-        <div class="spell-row">
-          <span class="prompt">sed</span>
-          <input id="sedSpell" spellcheck="false" autocomplete="off" aria-describedby="anatomyHelp">
-        </div>
-        <div class="anatomy-wrap">
-          <p class="anatomy-label" id="anatomyHelp">Colored sed anatomy</p>
-          <div class="anatomy-strip" id="anatomyStrip" aria-live="polite"></div>
-        </div>
-      </div>
+    <div class="anatomy-wrap" aria-label="Command syntax chunks">
+      <div class="anatomy-strip" id="anatomyStrip" aria-live="polite"></div>
+    </div>
 
-      <div class="io-grid">
-        <section class="panel io-pane">
-          <div class="pane-title">Victim Text</div>
-          <textarea id="victimText" spellcheck="false"></textarea>
-        </section>
-        <section class="panel io-pane">
-          <div class="pane-title">Output</div>
-          <pre class="output" id="outputText" aria-live="polite"></pre>
-        </section>
-      </div>
+    <div class="io-grid" id="ioGrid">
+      <section class="panel io-pane">
+        <div class="pane-title">Victim Text</div>
+        <textarea id="victimText" spellcheck="false"></textarea>
+      </section>
+      <div class="column-resizer" id="columnResizer" role="separator" aria-orientation="vertical" aria-label="Resize input and output panes"></div>
+      <section class="panel io-pane">
+        <div class="pane-title">Output</div>
+        <pre class="output" id="outputText" aria-live="polite"></pre>
+      </section>
+    </div>
 
-      <section class="panel splainer">
-        <div class="splainer-head">
-          <div class="section-title">Splainer / Reference Pane</div>
-          <div class="hint">Hover a colored chunk or card to link syntax to meaning.</div>
-        </div>
+    <div class="row-resizer" id="rowResizer" role="separator" aria-orientation="horizontal" aria-label="Resize workspace and command anatomy"></div>
+
+    <section class="panel reference-pane">
+      <div class="reference-head">
+        <div class="section-title">Command Anatomy</div>
+        <div class="hint">Hover a chunk or card to link syntax to meaning.</div>
+      </div>
+      <div class="reference-scroll">
         <div id="messages"></div>
         <div class="cards" id="cards"></div>
-      </section>
+      </div>
     </section>
   </main>
 
@@ -340,8 +415,16 @@
       const DEFAULT_SPELL = 's/\\([0-9]\\+\\)/NUM/g';
       const STORAGE_SPELL = 'sed-regex-gui-spell';
       const STORAGE_TEXT = 'sed-regex-gui-victim-text';
+      const STORAGE_THEME = 'sed-regex-gui-theme';
+      const STORAGE_ROW_SPLIT = 'sed-regex-gui-row-split';
+      const STORAGE_COLUMN_SPLIT = 'sed-regex-gui-column-split';
       const COLOR_CLASSES = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8'];
 
+      const app = document.getElementById('app');
+      const ioGrid = document.getElementById('ioGrid');
+      const rowResizer = document.getElementById('rowResizer');
+      const columnResizer = document.getElementById('columnResizer');
+      const themeToggle = document.getElementById('themeToggle');
       const sedSpell = document.getElementById('sedSpell');
       const victimText = document.getElementById('victimText');
       const outputText = document.getElementById('outputText');
@@ -352,14 +435,127 @@
       sedSpell.value = localStorage.getItem(STORAGE_SPELL) || DEFAULT_SPELL;
       victimText.value = localStorage.getItem(STORAGE_TEXT) || DEFAULT_TEXT;
 
+      applySavedTheme();
+      applySavedSplits();
+
+      themeToggle.addEventListener('click', cycleTheme);
       sedSpell.addEventListener('input', update);
       victimText.addEventListener('input', update);
       anatomyStrip.addEventListener('mouseover', activateFromEvent);
       anatomyStrip.addEventListener('mouseout', clearActiveFromEvent);
       cards.addEventListener('mouseover', activateFromEvent);
       cards.addEventListener('mouseout', clearActiveFromEvent);
+      installRowResizer();
+      installColumnResizer();
 
       update();
+
+
+      function applySavedTheme() {
+        const savedTheme = localStorage.getItem(STORAGE_THEME) || 'auto';
+        setTheme(savedTheme);
+      }
+
+      function cycleTheme() {
+        const currentTheme = localStorage.getItem(STORAGE_THEME) || 'auto';
+        const nextTheme = currentTheme === 'auto' ? 'dark' : currentTheme === 'dark' ? 'light' : 'auto';
+        setTheme(nextTheme);
+      }
+
+      function setTheme(theme) {
+        if (theme === 'auto') {
+          document.documentElement.removeAttribute('data-theme');
+        } else {
+          document.documentElement.dataset.theme = theme;
+        }
+        localStorage.setItem(STORAGE_THEME, theme);
+        themeToggle.textContent = theme;
+        themeToggle.setAttribute('aria-label', 'Theme mode: ' + theme);
+      }
+
+      function applySavedSplits() {
+        const rowSplit = clampRatio(Number(localStorage.getItem(STORAGE_ROW_SPLIT)), 0.22, 0.82, 0.58);
+        const columnSplit = clampRatio(Number(localStorage.getItem(STORAGE_COLUMN_SPLIT)), 0.25, 0.75, 0.5);
+        setRowSplit(rowSplit);
+        setColumnSplit(columnSplit);
+      }
+
+      function setRowSplit(ratio) {
+        app.style.setProperty('--workbench-main', ratio.toFixed(3) + 'fr');
+        app.style.setProperty('--workbench-reference', (1 - ratio).toFixed(3) + 'fr');
+      }
+
+      function setColumnSplit(ratio) {
+        ioGrid.style.setProperty('--input-column', ratio.toFixed(3) + 'fr');
+        ioGrid.style.setProperty('--output-column', (1 - ratio).toFixed(3) + 'fr');
+      }
+
+      function clampRatio(value, min, max, fallback) {
+        if (!Number.isFinite(value)) return fallback;
+        return Math.min(max, Math.max(min, value));
+      }
+
+      function installRowResizer() {
+        rowResizer.addEventListener('pointerdown', event => {
+          if (isNarrowLayout()) return;
+          event.preventDefault();
+          rowResizer.setPointerCapture(event.pointerId);
+          rowResizer.classList.add('is-dragging');
+
+          const onMove = moveEvent => {
+            const ioTop = ioGrid.getBoundingClientRect().top;
+            const referenceBottom = document.querySelector('.reference-pane').getBoundingClientRect().bottom;
+            const available = Math.max(1, referenceBottom - ioTop);
+            const ratio = clampRatio((moveEvent.clientY - ioTop) / available, 0.22, 0.82, 0.58);
+            setRowSplit(ratio);
+            localStorage.setItem(STORAGE_ROW_SPLIT, ratio.toFixed(3));
+          };
+
+          const onUp = upEvent => {
+            rowResizer.releasePointerCapture(upEvent.pointerId);
+            rowResizer.classList.remove('is-dragging');
+            rowResizer.removeEventListener('pointermove', onMove);
+            rowResizer.removeEventListener('pointerup', onUp);
+            rowResizer.removeEventListener('pointercancel', onUp);
+          };
+
+          rowResizer.addEventListener('pointermove', onMove);
+          rowResizer.addEventListener('pointerup', onUp);
+          rowResizer.addEventListener('pointercancel', onUp);
+        });
+      }
+
+      function installColumnResizer() {
+        columnResizer.addEventListener('pointerdown', event => {
+          if (isNarrowLayout()) return;
+          event.preventDefault();
+          columnResizer.setPointerCapture(event.pointerId);
+          columnResizer.classList.add('is-dragging');
+
+          const onMove = moveEvent => {
+            const rect = ioGrid.getBoundingClientRect();
+            const ratio = clampRatio((moveEvent.clientX - rect.left) / Math.max(1, rect.width), 0.25, 0.75, 0.5);
+            setColumnSplit(ratio);
+            localStorage.setItem(STORAGE_COLUMN_SPLIT, ratio.toFixed(3));
+          };
+
+          const onUp = upEvent => {
+            columnResizer.releasePointerCapture(upEvent.pointerId);
+            columnResizer.classList.remove('is-dragging');
+            columnResizer.removeEventListener('pointermove', onMove);
+            columnResizer.removeEventListener('pointerup', onUp);
+            columnResizer.removeEventListener('pointercancel', onUp);
+          };
+
+          columnResizer.addEventListener('pointermove', onMove);
+          columnResizer.addEventListener('pointerup', onUp);
+          columnResizer.addEventListener('pointercancel', onUp);
+        });
+      }
+
+      function isNarrowLayout() {
+        return window.matchMedia('(max-width: 780px)').matches;
+      }
 
       function update() {
         localStorage.setItem(STORAGE_SPELL, sedSpell.value);
