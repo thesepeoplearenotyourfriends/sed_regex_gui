@@ -19,6 +19,8 @@
       --shadow: rgba(32, 28, 22, 0.12);
       --danger: #8f2d2d;
       --danger-bg: #fff0f0;
+      --success: #17634a;
+      --success-bg: #ecf8f2;
       --focus: #1f5d7a;
       --active-outline: rgba(20, 20, 20, 0.23);
       --resizer: #d5ccbd;
@@ -56,6 +58,8 @@
         --shadow: rgba(0, 0, 0, 0.36);
         --danger: #ff9a9a;
         --danger-bg: #331c21;
+        --success: #91ddb9;
+        --success-bg: #173427;
         --focus: #80c7ee;
         --active-outline: rgba(244, 234, 220, 0.34);
         --resizer: #343d48;
@@ -93,6 +97,8 @@
       --shadow: rgba(0, 0, 0, 0.36);
       --danger: #ff9a9a;
       --danger-bg: #331c21;
+      --success: #91ddb9;
+      --success-bg: #173427;
       --focus: #80c7ee;
       --active-outline: rgba(244, 234, 220, 0.34);
       --resizer: #343d48;
@@ -139,7 +145,7 @@
 
     .toolbar {
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-columns: auto minmax(0, 1fr) auto auto;
       gap: 8px;
       align-items: center;
       min-height: 42px;
@@ -325,6 +331,36 @@
       color: var(--ink);
     }
 
+    .card details { margin-top: 8px; }
+
+    .card summary {
+      color: var(--muted);
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .card dl {
+      margin: 8px 0 0;
+      display: grid;
+      gap: 6px;
+      font-size: 0.9rem;
+    }
+
+    .card dt { font-weight: 800; color: var(--label); }
+    .card dd { margin: 0; color: var(--ink); }
+
+    .summary {
+      border: 1px solid var(--success);
+      border-left: 8px solid var(--success);
+      background: var(--success-bg);
+      color: var(--ink);
+      padding: 9px 10px;
+      margin-bottom: 8px;
+    }
+
+    .summary strong { color: var(--success); }
+
     .message {
       border: 1px solid var(--danger);
       border-left: 8px solid var(--danger);
@@ -333,6 +369,7 @@
       padding: 9px 10px;
       font-weight: 700;
       margin-bottom: 8px;
+      white-space: pre-wrap;
     }
 
     .empty-note {
@@ -351,6 +388,90 @@
     .c7 { --chunk-color: var(--c7); --chunk-bg: var(--c7-bg); }
     .c8 { --chunk-color: var(--c8); --chunk-bg: var(--c8-bg); }
 
+
+    .trainer-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 58px 10px 10px;
+      background: rgba(0, 0, 0, 0.36);
+    }
+
+    .trainer-backdrop.is-open { display: flex; }
+
+    .trainer-panel {
+      width: min(920px, 100%);
+      max-height: min(760px, calc(100vh - 76px));
+      display: flex;
+      flex-direction: column;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 34px var(--shadow);
+    }
+
+    .trainer-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel-2);
+    }
+
+    .trainer-title { font-weight: 800; color: var(--label); }
+    .trainer-subtitle { color: var(--muted); font-size: 0.88rem; }
+    .trainer-body { padding: 10px; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+    .trainer-search { font-size: 0.95rem; }
+    .trainer-meta { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 0.86rem; }
+
+    .trainer-results {
+      overflow: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+      gap: 8px;
+      padding-right: 2px;
+    }
+
+    .trainer-card {
+      border: 1px solid var(--border);
+      background: var(--field);
+      padding: 9px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .trainer-card h3 { margin: 0; font-size: 0.98rem; }
+    .trainer-code {
+      cursor: pointer;
+      display: block;
+      width: fit-content;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      color: var(--c2);
+      border: 1px solid var(--field-border);
+      background: var(--panel-2);
+      padding: 3px 6px;
+      font: 700 0.9rem/1.25 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .trainer-description { margin: 0; font-size: 0.9rem; }
+    .trainer-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+    .trainer-pill {
+      border: 1px solid var(--border);
+      color: var(--muted);
+      background: var(--panel-2);
+      padding: 1px 5px;
+      font-size: 0.76rem;
+    }
+
+    .trainer-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .trainer-actions button { padding: 5px 8px; font-size: 0.86rem; }
+    .support-badge { color: var(--muted); font-size: 0.78rem; }
+
     @media (max-width: 780px) {
       body { overflow: auto; }
       .app {
@@ -359,7 +480,7 @@
         padding: 6px;
         grid-template-rows: auto auto auto auto;
       }
-      .toolbar { grid-template-columns: auto minmax(0, 1fr) auto; }
+      .toolbar { grid-template-columns: auto minmax(0, 1fr) auto auto; }
       .io-grid {
         grid-template-columns: 1fr;
         grid-template-rows: minmax(220px, 38vh) minmax(220px, 38vh);
@@ -374,6 +495,7 @@
     <div class="toolbar" aria-label="Sed command">
       <label class="prompt" for="sedSpell">sed</label>
       <input id="sedSpell" spellcheck="false" autocomplete="off" aria-describedby="anatomyStrip">
+      <button type="button" id="patternsToggle" aria-haspopup="dialog" aria-expanded="false">patterns</button>
       <button type="button" id="themeToggle" aria-label="Theme mode">auto</button>
     </div>
 
@@ -402,10 +524,31 @@
       </div>
       <div class="reference-scroll">
         <div id="messages"></div>
+        <div id="commandSummary"></div>
         <div class="cards" id="cards"></div>
       </div>
     </section>
   </main>
+
+  <div class="trainer-backdrop" id="patternTrainer" role="dialog" aria-modal="true" aria-labelledby="trainerTitle">
+    <section class="trainer-panel">
+      <div class="trainer-head">
+        <div>
+          <div class="trainer-title" id="trainerTitle">Pattern Trainer</div>
+          <div class="trainer-subtitle">Search sed commands, regex fragments, or plain-English intent.</div>
+        </div>
+        <button type="button" id="trainerClose" aria-label="Close Pattern Trainer">close</button>
+      </div>
+      <div class="trainer-body">
+        <input class="trainer-search" id="trainerSearch" spellcheck="false" autocomplete="off" placeholder="search commands, patterns, or intent...">
+        <div class="trainer-meta">
+          <span id="trainerCount"></span>
+          <span>Click a snippet or action to insert it.</span>
+        </div>
+        <div class="trainer-results" id="trainerResults"></div>
+      </div>
+    </section>
+  </div>
 
   <script>
     (function () {
@@ -419,17 +562,73 @@
       const STORAGE_ROW_SPLIT = 'sed-regex-gui-row-split';
       const STORAGE_COLUMN_SPLIT = 'sed-regex-gui-column-split';
       const COLOR_CLASSES = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8'];
+      const PATTERN_LIBRARY = [
+        patternEntry('replace-first-foo', 'Replace first foo with bar', 's/foo/bar/', 'command', 'Substitution basics', 'Replace the first occurrence of foo on each selected line.', ['replace', 'substitute', 'first match', 'foo bar', 'change foo to bar']),
+        patternEntry('replace-all-foo', 'Replace all foo with bar', 's/foo/bar/g', 'command', 'Substitution basics', 'Replace every occurrence of foo on each selected line.', ['replace all', 'global', 'substitute', 'foo bar', 'change every foo']),
+        patternEntry('replace-digits', 'Replace digits with NUM', 's/[0-9]\\+/NUM/g', 'command', 'Substitution basics', 'Replace every run of digits with NUM.', ['number', 'numbers', 'digit', 'digits', 'replace numbers', 'replace digits', 'redact numbers', 'numeric']),
+        patternEntry('replace-words', 'Replace words with WORD', 's/[A-Za-z]\\+/WORD/g', 'command', 'Substitution basics', 'Replace every run of letters with WORD.', ['word', 'words', 'letters', 'alphabetic', 'replace words']),
+        patternEntry('collapse-spaces', 'Collapse repeated spaces', 's/  */ /g', 'command', 'Substitution basics', 'Replace runs of spaces with one space.', ['space', 'spaces', 'whitespace', 'collapse', 'normalize', 'cleanup spacing']),
+        patternEntry('remove-leading-spaces', 'Remove leading spaces', 's/^  *//', 'command', 'Substitution basics', 'Delete spaces at the start of each selected line.', ['trim left', 'leading whitespace', 'indent', 'remove indentation']),
+        patternEntry('remove-trailing-spaces', 'Remove trailing spaces', 's/  *$//', 'command', 'Substitution basics', 'Delete spaces at the end of each selected line.', ['trim right', 'trailing whitespace', 'cleanup', 'strip spaces']),
+
+        patternEntry('wrap-digits', 'Wrap digits in brackets', 's/\\([0-9]\\+\\)/[\\1]/g', 'command', 'Captures and backreferences', 'Capture each run of digits and reuse it inside brackets.', ['capture', 'backreference', 'digits', 'wrap', 'brackets', 'reuse captured text']),
+        patternEntry('swap-two-words', 'Swap two words', 's/\\([A-Za-z]\\+\\) \\([A-Za-z]\\+\\)/\\2 \\1/', 'command', 'Captures and backreferences', 'Capture two words and reverse their order.', ['swap', 'reverse', 'capture', 'backreference', 'two words', 'swap words', 'swap fields']),
+        patternEntry('keep-id-number', 'Keep ID number', 's/id=\\([0-9]\\+\\)/ID:\\1/g', 'command', 'Captures and backreferences', 'Capture the number after id= and reuse it in the replacement.', ['id', 'capture', 'number', 'reuse', 'backreference', 'keep part of match']),
+        patternEntry('quote-each-word', 'Surround each word with quotes', 's/\\([A-Za-z][A-Za-z]*\\)/"\\1"/g', 'command', 'Captures and backreferences', 'Capture each word and place double quotes around it.', ['quote', 'wrap', 'word', 'capture', 'surround words']),
+        patternEntry('reuse-first-capture', 'Reuse first captured text', '\\1', 'replacement', 'Captures and backreferences', 'Insert the text captured by the first capture group in a replacement.', ['backreference', 'capture', 'reuse', 'replacement', 'group 1'], 'insert-at-cursor'),
+
+        patternEntry('print-line-3', 'Print line 3', '3p', 'command', 'Line printing', 'Print line number 3.', ['print', 'line number', 'third line']),
+        patternEntry('print-lines-2-5', 'Print lines 2 through 5', '2,5p', 'command', 'Line printing', 'Print lines 2 through 5.', ['print range', 'line range', 'between lines', 'lines 2 to 5']),
+        patternEntry('print-containing-foo', 'Print lines containing foo', '/foo/p', 'command', 'Line printing', 'Print lines that match foo.', ['print matching', 'contains', 'grep', 'filter', 'matching lines']),
+        patternEntry('print-start-end', 'Print from START through END', '/START/,/END/p', 'command', 'Line printing', 'Print the range beginning at a line matching START and ending at a line matching END.', ['range', 'between markers', 'start end', 'block', 'print block']),
+
+        patternEntry('delete-containing-foo', 'Delete lines containing foo', '/foo/d', 'command', 'Line deletion', 'Delete lines that match foo.', ['delete', 'remove', 'matching lines', 'contains', 'drop lines']),
+        patternEntry('delete-blank-lines', 'Delete blank lines', '/^$/d', 'command', 'Line deletion', 'Delete empty lines.', ['blank', 'empty', 'delete blank', 'remove empty', 'empty lines', 'delete empty lines', 'remove empty lines', 'cleanup', 'line cleanup', 'whitespace']),
+        patternEntry('delete-lines-2-5', 'Delete lines 2 through 5', '2,5d', 'command', 'Line deletion', 'Delete lines 2 through 5.', ['delete range', 'remove range', 'line numbers', 'cut lines']),
+        patternEntry('delete-start-end', 'Delete from START through END', '/START/,/END/d', 'command', 'Line deletion', 'Delete a block of lines from START through END.', ['delete block', 'remove section', 'between markers', 'remove block']),
+
+        patternEntry('add-prefix', 'Add prefix to every line', 's/^/prefix: /', 'command', 'Anchors and line positions', 'Insert text at the start of each line.', ['prefix', 'start of line', 'beginning', 'insert before', 'prepend']),
+        patternEntry('add-suffix', 'Add suffix to every line', 's/$/ suffix/', 'command', 'Anchors and line positions', 'Insert text at the end of each line.', ['suffix', 'end of line', 'append', 'insert after']),
+        patternEntry('match-blank-line', 'Match blank line', '^$', 'fragment', 'Anchors and line positions', 'Matches a line with nothing between start and end.', ['blank', 'empty', 'line', 'anchor'], 'insert-at-cursor'),
+        patternEntry('start-of-line', 'Start of line', '^', 'fragment', 'Anchors and line positions', 'Anchor matching the beginning of a line.', ['anchor', 'beginning', 'start'], 'insert-at-cursor'),
+        patternEntry('end-of-line', 'End of line', '$', 'fragment', 'Anchors and line positions', 'Anchor matching the end of a line.', ['anchor', 'ending', 'end'], 'insert-at-cursor'),
+
+        patternEntry('one-digit', 'One digit', '[0-9]', 'fragment', 'Regex fragments', 'Matches one digit.', ['digit', 'number', '0 through 9'], 'insert-at-cursor'),
+        patternEntry('one-or-more-digits', 'One or more digits', '[0-9]\\+', 'fragment', 'Regex fragments', 'Matches a run of one or more digits.', ['digits', 'numbers', 'numeric', 'one or more'], 'insert-at-cursor'),
+        patternEntry('lowercase-letters', 'Lowercase letters', '[a-z]\\+', 'fragment', 'Regex fragments', 'Matches a run of lowercase letters.', ['lowercase', 'letters', 'word'], 'insert-at-cursor'),
+        patternEntry('uppercase-letters', 'Uppercase letters', '[A-Z]\\+', 'fragment', 'Regex fragments', 'Matches a run of uppercase letters.', ['uppercase', 'letters', 'caps'], 'insert-at-cursor'),
+        patternEntry('letters', 'Letters', '[A-Za-z]\\+', 'fragment', 'Regex fragments', 'Matches a run of letters.', ['letters', 'alpha', 'alphabetic', 'word'], 'insert-at-cursor'),
+        patternEntry('wordish-token', 'Word-ish token', '[A-Za-z0-9_]\\+', 'fragment', 'Regex fragments', 'Matches letters, digits, and underscores.', ['word', 'identifier', 'token', 'variable'], 'insert-at-cursor'),
+        patternEntry('any-character', 'Any character', '.', 'fragment', 'Regex fragments', 'Matches any single character.', ['dot', 'anything', 'wildcard'], 'insert-at-cursor'),
+        patternEntry('literal-dot', 'Literal dot', '\\.', 'fragment', 'Regex fragments', 'Matches an actual period character.', ['period', 'dot', 'literal'], 'insert-at-cursor'),
+        patternEntry('capture-group', 'Capture group', '\\(...\\)', 'fragment', 'Regex fragments', 'Captures the matched text so it can be reused as \\1, \\2, etc.', ['capture', 'group', 'backreference', 'save match'], 'insert-at-cursor'),
+        patternEntry('backreference-1', 'Backreference 1', '\\1', 'fragment', 'Regex fragments', 'Reuse the text captured by the first capture group.', ['backreference', 'capture', 'reuse', 'group 1'], 'insert-at-cursor'),
+        patternEntry('one-or-more', 'One or more', '\\+', 'fragment', 'Regex fragments', 'In basic sed regex, repeats the previous item one or more times.', ['plus', 'repeat', 'one or more', 'quantifier'], 'insert-at-cursor'),
+        patternEntry('zero-or-more', 'Zero or more', '*', 'fragment', 'Regex fragments', 'Repeats the previous item zero or more times.', ['star', 'repeat', 'zero or more', 'quantifier'], 'insert-at-cursor'),
+
+        patternEntry('specific-line-address', 'Specific line address', '3', 'address', 'Address fragments', 'Select line 3.', ['address', 'line number', 'specific line'], 'insert-at-cursor'),
+        patternEntry('line-range-address', 'Line range address', '2,5', 'address', 'Address fragments', 'Select lines 2 through 5.', ['address', 'range', 'line numbers'], 'insert-at-cursor'),
+        patternEntry('regex-address', 'Regex address', '/foo/', 'address', 'Address fragments', 'Select lines matching foo.', ['address', 'matching line', 'contains', 'regex'], 'insert-at-cursor'),
+        patternEntry('regex-range-address', 'Regex range address', '/START/,/END/', 'address', 'Address fragments', 'Select from a line matching START through a line matching END.', ['address', 'range', 'between markers', 'block'], 'insert-at-cursor')
+      ];
 
       const app = document.getElementById('app');
       const ioGrid = document.getElementById('ioGrid');
       const rowResizer = document.getElementById('rowResizer');
       const columnResizer = document.getElementById('columnResizer');
       const themeToggle = document.getElementById('themeToggle');
+      const patternsToggle = document.getElementById('patternsToggle');
+      const patternTrainer = document.getElementById('patternTrainer');
+      const trainerClose = document.getElementById('trainerClose');
+      const trainerSearch = document.getElementById('trainerSearch');
+      const trainerResults = document.getElementById('trainerResults');
+      const trainerCount = document.getElementById('trainerCount');
       const sedSpell = document.getElementById('sedSpell');
       const victimText = document.getElementById('victimText');
       const outputText = document.getElementById('outputText');
       const anatomyStrip = document.getElementById('anatomyStrip');
       const cards = document.getElementById('cards');
+      const commandSummary = document.getElementById('commandSummary');
       const messages = document.getElementById('messages');
 
       sedSpell.value = localStorage.getItem(STORAGE_SPELL) || DEFAULT_SPELL;
@@ -439,6 +638,12 @@
       applySavedSplits();
 
       themeToggle.addEventListener('click', cycleTheme);
+      patternsToggle.addEventListener('click', openTrainer);
+      trainerClose.addEventListener('click', closeTrainer);
+      patternTrainer.addEventListener('click', event => { if (event.target === patternTrainer) closeTrainer(); });
+      trainerSearch.addEventListener('input', renderTrainerResults);
+      trainerResults.addEventListener('click', handleTrainerClick);
+      document.addEventListener('keydown', event => { if (event.key === 'Escape' && patternTrainer.classList.contains('is-open')) closeTrainer(); });
       sedSpell.addEventListener('input', update);
       victimText.addEventListener('input', update);
       anatomyStrip.addEventListener('mouseover', activateFromEvent);
@@ -448,7 +653,131 @@
       installRowResizer();
       installColumnResizer();
 
+      renderTrainerResults();
       update();
+
+
+      function patternEntry(id, title, snippet, type, category, description, tags, insertMode, notes, supported) {
+        return {
+          id,
+          title,
+          snippet,
+          type,
+          category,
+          description,
+          tags,
+          insertMode: insertMode || (type === 'command' ? 'replace-command' : 'insert-at-cursor'),
+          notes: notes || '',
+          supported: supported === undefined ? true : supported
+        };
+      }
+
+      function openTrainer() {
+        patternTrainer.classList.add('is-open');
+        patternsToggle.setAttribute('aria-expanded', 'true');
+        renderTrainerResults();
+        setTimeout(() => trainerSearch.focus(), 0);
+      }
+
+      function closeTrainer() {
+        patternTrainer.classList.remove('is-open');
+        patternsToggle.setAttribute('aria-expanded', 'false');
+        patternsToggle.focus();
+      }
+
+      function renderTrainerResults() {
+        const query = trainerSearch.value.trim().toLowerCase();
+        const stopWords = new Set(['i', 'want', 'to', 'the', 'a', 'an', 'with', 'that', 'what', 'how', 'do', 'can', 'please']);
+        const terms = query.split(/\s+/).filter(term => term && !stopWords.has(term));
+        const matches = PATTERN_LIBRARY.filter(entry => {
+          if (entry.supported === false) return false;
+          if (!terms.length) return true;
+          const haystack = [entry.title, entry.snippet, entry.description, entry.category, entry.type, entry.notes].concat(entry.tags || []).join(' ').toLowerCase();
+          return terms.every(term => haystack.includes(term));
+        });
+
+        trainerCount.textContent = matches.length + ' of ' + PATTERN_LIBRARY.length + ' patterns';
+        trainerResults.innerHTML = '';
+        if (!matches.length) {
+          const note = document.createElement('div');
+          note.className = 'empty-note';
+          note.textContent = 'No matches yet. Try intent words like “delete blank”, “swap words”, “replace digits”, or syntax like “[0-9]” and “/foo/d”.';
+          trainerResults.appendChild(note);
+          return;
+        }
+
+        matches.forEach(entry => trainerResults.appendChild(renderTrainerCard(entry)));
+      }
+
+      function renderTrainerCard(entry) {
+        const card = document.createElement('article');
+        card.className = 'trainer-card';
+
+        const title = document.createElement('h3');
+        title.textContent = entry.title;
+
+        const code = document.createElement('code');
+        code.className = 'trainer-code';
+        code.textContent = entry.snippet;
+        code.dataset.patternId = entry.id;
+
+        const description = document.createElement('p');
+        description.className = 'trainer-description';
+        description.textContent = entry.description;
+
+        const tags = document.createElement('div');
+        tags.className = 'trainer-tags';
+        [entry.category, entry.type].concat((entry.tags || []).slice(0, 4)).forEach(tag => {
+          const pill = document.createElement('span');
+          pill.className = 'trainer-pill';
+          pill.textContent = tag;
+          tags.appendChild(pill);
+        });
+
+        const actions = document.createElement('div');
+        actions.className = 'trainer-actions';
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.patternId = entry.id;
+        button.textContent = entry.insertMode === 'replace-command' ? 'Use command' : 'Insert fragment';
+        const badge = document.createElement('span');
+        badge.className = 'support-badge';
+        badge.textContent = entry.supported === 'partial' ? 'partial support' : 'supported';
+        actions.append(button, badge);
+
+        if (entry.notes) {
+          const note = document.createElement('p');
+          note.className = 'trainer-description';
+          note.textContent = entry.notes;
+          card.append(title, code, description, note, tags, actions);
+        } else {
+          card.append(title, code, description, tags, actions);
+        }
+        return card;
+      }
+
+      function handleTrainerClick(event) {
+        const target = event.target.closest('[data-pattern-id]');
+        if (!target) return;
+        const entry = PATTERN_LIBRARY.find(item => item.id === target.dataset.patternId);
+        if (!entry) return;
+        insertPattern(entry);
+      }
+
+      function insertPattern(entry) {
+        const start = sedSpell.selectionStart || 0;
+        const end = sedSpell.selectionEnd || start;
+        if (entry.insertMode === 'replace-command') {
+          sedSpell.value = entry.snippet;
+        } else {
+          sedSpell.value = sedSpell.value.slice(0, start) + entry.snippet + sedSpell.value.slice(end);
+          const caret = start + entry.snippet.length;
+          sedSpell.setSelectionRange(caret, caret);
+        }
+        closeTrainer();
+        sedSpell.focus();
+        update();
+      }
 
 
       function applySavedTheme() {
@@ -567,6 +896,7 @@
 
         outputText.textContent = parsed.error ? parsed.error : result.output;
         renderMessages(allMessages);
+        renderSummary(parsed);
         renderAnatomy(parsed.chunks);
         renderCards(parsed.chunks);
       }
@@ -604,7 +934,7 @@
 
         while (spell[pos] === ' ') pos += 1;
         if (pos >= spell.length) {
-          return parsedError(chunks, messages, 'No command found after the address. V1 supports p, d, and s/pattern/replacement/flags.', quiet, address);
+          return parsedError(chunks, messages, 'No command found after the address.\n\nExpected one of: p, d, or s/pattern/replacement/flags.\n\nRecognized address: ' + describeRecognizedAddress(address), quiet, address);
         }
 
         const commandChar = spell[pos];
@@ -614,7 +944,7 @@
           pos = sub.pos;
           chunks.push(...sub.chunks);
           const leftover = spell.slice(pos).trim();
-          if (leftover) return parsedError(chunks, messages, 'Unsupported trailing syntax in V1: ' + leftover, quiet, address);
+          if (leftover) return parsedError(chunks, messages, 'Unsupported trailing syntax: ' + leftover + '\n\nThis app currently expects a single sed-ish command. Remove extra text after the substitution flags.', quiet, address);
           return { chunks, messages, error: null, quiet, address, command: sub.command };
         }
 
@@ -623,11 +953,11 @@
           addChunk(chunks, commandChar, commandChar === 'p' ? 'Print command' : 'Delete command', commandChar === 'p' ? 'Prints selected lines. With -n, this is how matching lines become visible.' : 'Deletes selected lines from the output. In V1 this removes the line instead of printing it.');
           pos += 1;
           const leftover = spell.slice(pos).trim();
-          if (leftover) return parsedError(chunks, messages, 'Unsupported trailing syntax in V1: ' + leftover, quiet, address);
+          if (leftover) return parsedError(chunks, messages, 'Unsupported trailing syntax: ' + leftover + '\n\nThis app currently expects a single p or d command after any address.\nRecognized address: ' + describeRecognizedAddress(address) + '\nRecognized command: ' + commandChar, quiet, address);
           return { chunks, messages, error: null, quiet, address, command };
         }
 
-        return parsedError(chunks, messages, unsupportedMessage(commandChar), quiet, address);
+        return parsedError(chunks, messages, unsupportedMessage(commandChar, address), quiet, address);
       }
 
       function stripShellSedWrapper(spell) {
@@ -667,17 +997,17 @@
 
       function parseSubstitution(spell, pos) {
         const delimiter = spell[pos + 1];
-        if (!delimiter || /\s/.test(delimiter)) return { error: 'Could not parse this substitution command. Expected s/pattern/replacement/flags.' };
+        if (!delimiter || /\s/.test(delimiter)) return { error: substitutionParseMessage('The character after s must be the delimiter, usually /.') };
 
         const patternPart = readDelimited(spell, pos + 1, delimiter);
-        if (patternPart.error) return { error: 'Unclosed substitution pattern.' };
+        if (patternPart.error) return { error: substitutionParseMessage('The pattern delimiter may be missing or unescaped.') };
         const replacementPart = readDelimited(spell, patternPart.pos - 1, delimiter);
-        if (replacementPart.error) return { error: 'Unclosed substitution replacement.' };
+        if (replacementPart.error) return { error: substitutionParseMessage('The replacement delimiter may be missing or unescaped.') };
 
         const flagsText = spell.slice(replacementPart.pos).match(/^[a-zA-Z]*/)[0];
         const flags = flagsText.split('');
         const unsupportedFlags = flags.filter(flag => flag !== 'g' && flag !== 'p');
-        if (unsupportedFlags.length) return { error: 'Unsupported substitution flag in V1: ' + unsupportedFlags.join(', ') };
+        if (unsupportedFlags.length) return { error: 'Unsupported substitution flag: ' + unsupportedFlags.join(', ') + '\n\nSupported flags in this app: g (replace all matches on a line) and p (print changed lines).\nRecognized command: substitution' };
 
         const chunks = [];
         addChunk(chunks, 's' + delimiter + delimiter + delimiter, 'Substitution command', 'For each selected line, replace text matching the pattern with the replacement text.');
@@ -850,18 +1180,112 @@
           text,
           title,
           explanation,
+          details: buildInstructionDetails(text, title, explanation),
           colorClass: COLOR_CLASSES[chunks.length % COLOR_CLASSES.length]
         });
+      }
+
+      function buildInstructionDetails(text, title, explanation) {
+        const common = {
+          what: explanation,
+          here: 'This part contributes to the command currently in the sed input.',
+          example: 'Try it on the sample text and watch the output update live.',
+          mistake: ''
+        };
+        if (title === 'Substitution command') return { what: 'The s command is sed substitution: s/pattern/replacement/flags.', here: 'This command replaces text matched by the pattern with the replacement on selected lines.', example: 's/foo/bar/g changes every foo on a line to bar.', mistake: 'A missing delimiter makes sed unable to tell where the pattern or replacement ends.' };
+        if (title === 'Pattern') return { what: 'The pattern is the regular expression sed searches for.', here: 'Only text matching this pattern is changed, printed, or selected by the command.', example: '[0-9]\\+ matches 123 as one run of digits.', mistake: 'In basic sed regex, use \\+ for one-or-more; a plain + is usually literal.' };
+        if (title === 'Replacement text') return { what: 'The replacement is inserted where the pattern matched.', here: text === '(empty replacement)' ? 'This deletes each matched piece of text.' : 'This text is written in place of each match.', example: 'NUM replaces matched digits with the literal text NUM.', mistake: 'Use \\1, \\2, etc. to reuse capture groups; $1 is not sed replacement syntax.' };
+        if (title === 'Global flag') return { what: 'The g flag means global within each selected line.', here: 'Without it, only the first match on a line is replaced.', example: 's/foo/bar/g changes all foo matches on the line.', mistake: 'g does not mean all lines; addresses decide which lines are selected.' };
+        if (title === 'Print flag') return { what: 'The p flag prints a line when substitution succeeds.', here: 'It can show only changed lines when paired with -n.', example: '-n s/foo/bar/p prints lines where foo was replaced.', mistake: 'Without -n, p can make matching lines appear twice.' };
+        if (title === 'Print command') return { what: 'The p command prints selected lines.', here: 'Lines selected by the address are printed by this command.', example: '/foo/p prints lines containing foo.', mistake: 'Without -n, sed also auto-prints, so printed lines can appear twice.' };
+        if (title === 'Delete command') return { what: 'The d command deletes selected lines from output.', here: 'Lines selected by the address are removed.', example: '/^$/d removes blank lines.', mistake: 'A delete command affects whole lines, not just the matching text inside them.' };
+        if (title === 'Address range') return { what: 'An address range selects consecutive lines.', here: 'Selection starts at the first address and continues through the next line matching the second address.', example: '/START/,/END/p prints a marked block.', mistake: 'The ending address line is included in the selected range.' };
+        if (title === 'Line address') return { what: 'A line address selects one numbered line.', here: 'Only that 1-based line number is selected.', example: '3p prints line 3.', mistake: 'Sed line numbers start at 1, not 0.' };
+        if (title === 'Regex address') return { what: 'A regex address selects whole lines whose content matches.', here: 'The command runs only on matching lines.', example: '/foo/d deletes lines containing foo.', mistake: 'The slashes delimit the address; they are not part of the text being matched.' };
+        if (title === 'Range start') return { what: 'The range start is the address that turns selection on.', here: 'When this address matches, the range begins on that same line.', example: '/START/,/END/p begins printing at START.', mistake: 'If it never matches, the range never starts.' };
+        if (title === 'Range end') return { what: 'The range end is the address that turns selection off.', here: 'The matching end line is included, then the range stops.', example: '/START/,/END/d deletes through END.', mistake: 'A later START can begin another range after the previous END.' };
+        if (title === 'Capture group') return { what: 'A basic sed capture group is written as \\( ... \\).', here: 'It saves matched text so the replacement can reuse it.', example: 's/\\([0-9]\\+\\)/[\\1]/ wraps digits in brackets.', mistake: 'Plain parentheses are literal in basic sed regex; escape them to capture.' };
+        if (title === 'One-or-more quantifier') return { what: 'Escaped \\+ repeats the previous item one or more times in basic sed regex.', here: 'It makes the previous token match a run instead of a single character.', example: '[0-9]\\+ matches 123 and 101112.', mistake: 'Plain + is usually literal in basic sed regex. Use \\+ for repetition.' };
+        if (title.toLowerCase().includes('range') || title === 'Bracket expression') return { what: explanation, here: 'This character class controls which single character positions can match.', example: '[A-Za-z]\\+ matches a run of letters.', mistake: 'A bracket expression matches one character unless a quantifier like * or \\+ follows it.' };
+        return common;
       }
 
       function parsedError(chunks, messages, error, quiet, address) {
         return { chunks, messages, error, quiet, address, command: null };
       }
 
-      function unsupportedMessage(commandChar) {
-        const names = { h: 'hold space', H: 'hold space append', g: 'get hold space', G: 'append hold space', x: 'exchange hold and pattern space', b: 'branching', t: 'branching on substitution', N: 'multiline pattern space', D: 'multiline delete', P: 'multiline print' };
-        if (names[commandChar]) return 'Unsupported feature in V1: ' + names[commandChar] + '.';
-        return 'Unsupported command in V1: ' + commandChar + '. Supported commands are p, d, and s/pattern/replacement/flags.';
+      function substitutionParseMessage(possibleIssue) {
+        return 'Could not parse substitution.\n\nExpected:\ns/pattern/replacement/flags\n\nPossible issue:\n' + possibleIssue;
+      }
+
+      function describeRecognizedAddress(address) {
+        if (!address) return '(none)';
+        if (address.text) return address.text;
+        if (address.type === 'line') return String(address.line);
+        if (address.type === 'regex') return '/' + address.pattern + '/';
+        return '(recognized range)';
+      }
+
+      function unsupportedMessage(commandChar, address) {
+        const names = { h: 'hold space commands', H: 'hold space append commands', g: 'get hold space commands', G: 'append hold space commands', x: 'exchange hold and pattern space commands', b: 'branching commands', t: 'branching on substitution commands', N: 'multiline pattern space commands', D: 'multiline delete commands', P: 'multiline print commands' };
+        if (names[commandChar]) {
+          return 'Unsupported command: ' + commandChar + '\n\nThis app does not yet simulate sed ' + names[commandChar] + '.\nRecognized address: ' + describeRecognizedAddress(address) + '\nRecognized command: ' + commandChar;
+        }
+        return 'Unsupported command: ' + commandChar + '\n\nSupported commands are p, d, and s/pattern/replacement/flags.\nRecognized address: ' + describeRecognizedAddress(address) + '\nRecognized command: ' + commandChar;
+      }
+
+      function renderSummary(parsed) {
+        commandSummary.innerHTML = '';
+        if (parsed.error || !parsed.command) return;
+        const text = summarizeCommand(parsed);
+        if (!text) return;
+        const div = document.createElement('div');
+        div.className = 'summary';
+        const strong = document.createElement('strong');
+        strong.textContent = 'Summary: ';
+        div.append(strong, document.createTextNode(text));
+        commandSummary.appendChild(div);
+      }
+
+      function summarizeCommand(parsed) {
+        const addressText = summarizeAddress(parsed.address);
+        if (parsed.command.type === 's') {
+          return 'Replace ' + describePattern(parsed.command.pattern) + ' with ' + describeReplacement(parsed.command.replacement) + ' ' + (parsed.command.flags.includes('g') ? 'for every match' : 'for the first match') + ' on ' + addressText + '.';
+        }
+        if (parsed.command.type === 'd') return 'Delete ' + addressText + '.';
+        if (parsed.command.type === 'p') return 'Print ' + addressText + (parsed.quiet ? '.' : ' (without -n, sed also prints all lines automatically).');
+        return '';
+      }
+
+      function summarizeAddress(address) {
+        if (!address) return 'each selected line';
+        if (address.type === 'line') return 'line ' + address.line;
+        if (address.type === 'regex') return 'lines that match ' + address.pattern;
+        if (address.type === 'range') return 'lines from the first ' + addressLabel(address.start) + ' match through the next ' + addressLabel(address.end) + ' match';
+        return 'selected lines';
+      }
+
+      function addressLabel(address) {
+        if (address.type === 'line') return 'line ' + address.line;
+        if (address.type === 'regex') return address.pattern;
+        return 'address';
+      }
+
+      function describePattern(pattern) {
+        if (pattern === '[0-9]\\+') return 'every run of digits';
+        if (pattern === '[A-Za-z]\\+') return 'every run of letters';
+        if (pattern === '^') return 'the start of the line';
+        if (pattern === '$') return 'the end of the line';
+        if (pattern === '^$') return 'blank lines';
+        if (pattern === '  *') return 'runs of spaces';
+        if (!pattern) return 'empty matches';
+        return 'text matching ' + pattern;
+      }
+
+      function describeReplacement(replacement) {
+        if (!replacement) return 'nothing';
+        if (/\\\d/.test(replacement)) return replacement + ' (reusing captured text)';
+        return replacement;
       }
 
       function renderMessages(list) {
@@ -917,9 +1341,27 @@
           const explanation = document.createElement('p');
           explanation.textContent = chunk.explanation;
 
-          card.append(code, title, explanation);
+          const details = document.createElement('details');
+          const summary = document.createElement('summary');
+          summary.textContent = 'More detail';
+          const dl = document.createElement('dl');
+          appendDetail(dl, 'What it is', chunk.details.what);
+          appendDetail(dl, 'What it does here', chunk.details.here);
+          appendDetail(dl, 'Tiny example', chunk.details.example);
+          if (chunk.details.mistake) appendDetail(dl, 'Common mistake', chunk.details.mistake);
+          details.append(summary, dl);
+
+          card.append(code, title, explanation, details);
           cards.appendChild(card);
         });
+      }
+
+      function appendDetail(dl, label, text) {
+        const dt = document.createElement('dt');
+        dt.textContent = label;
+        const dd = document.createElement('dd');
+        dd.textContent = text;
+        dl.append(dt, dd);
       }
 
       function activateFromEvent(event) {
