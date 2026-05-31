@@ -425,7 +425,7 @@
     .trainer-title { font-weight: 800; color: var(--label); }
     .trainer-subtitle { color: var(--muted); font-size: 0.88rem; }
     .trainer-body { padding: 10px; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
-    .trainer-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+    .trainer-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 8px; }
     .trainer-search, .trainer-filter { font-size: 0.95rem; }
     .trainer-filter { padding: 8px 10px; min-width: 190px; }
     .trainer-meta { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 0.86rem; }
@@ -464,6 +464,7 @@
     }
 
     .trainer-description { margin: 0; font-size: 0.9rem; }
+    .trainer-example { margin: 0; color: var(--muted); font-size: 0.78rem; white-space: pre-wrap; }
     .trainer-tags { display: flex; flex-wrap: wrap; gap: 4px; }
     .trainer-pill {
       border: 1px solid var(--border);
@@ -581,11 +582,14 @@
       <div class="trainer-body">
         <div class="trainer-controls">
           <input class="trainer-search" id="trainerSearch" spellcheck="false" autocomplete="off" placeholder="search commands, patterns, or intent...">
+          <select class="trainer-filter" id="trainerCategoryFilter" aria-label="Filter by category"></select>
+          <select class="trainer-filter" id="trainerTypeFilter" aria-label="Filter by type"></select>
           <select class="trainer-filter" id="trainerSupportFilter" aria-label="Filter by support level">
-            <option value="all">All support levels</option>
+            <option value="supported-partial" selected>Supported + partial</option>
             <option value="supported">Supported only</option>
             <option value="partial">Partial only</option>
             <option value="reference">Reference-only</option>
+            <option value="all">All support levels</option>
           </select>
         </div>
         <div class="trainer-meta">
@@ -611,81 +615,157 @@
       const STORAGE_PINNED_PATTERNS = 'sed-regex-gui-pinned-patterns';
       const COLOR_CLASSES = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8'];
       const PATTERN_LIBRARY = [
-        patternEntry('replace-first-foo', 'Replace first foo with bar', 's/foo/bar/', 'command', 'Substitution basics', 'Replace the first occurrence of foo on each selected line.', ['replace', 'substitute', 'first match', 'foo bar', 'change foo to bar', 'swap text']),
-        patternEntry('replace-all-foo', 'Replace all foo with bar', 's/foo/bar/g', 'command', 'Substitution basics', 'Replace every occurrence of foo on each selected line.', ['replace all', 'global', 'substitute', 'foo bar', 'change every foo', 'find and replace']),
-        patternEntry('replace-text-files-backup', 'Replace text in files with backup', "sed -i.bak 's/old/new/g' file.txt", 'shell recipe', 'Batch file operations', 'Run a global substitution in-place while creating a .bak backup file.', ['replace in file', 'in place', 'backup', 'sed -i', 'old new', 'batch edit', 'safe replace'], 'replace-command', 'Reference-only here because this workbench simulates one sed script against the Victim Text instead of editing files.', 'reference'),
-        patternEntry('replace-paths-pipe-delimiter', 'Replace paths without slash escaping', 's|/var/www/old|/var/www/new|g', 'command', 'Configuration file operations', 'Use | as the substitution delimiter so slash-heavy paths stay readable.', ['path', 'paths', 'slash', 'delimiter', 'directory', 'replace path', 'var www']),
-        patternEntry('replace-http-https-multiple-files', 'Replace http with https in HTML files', "sed -i.bak 's/http:/https:/g' *.html", 'shell recipe', 'Batch file operations', 'Update matching files in place and keep backups for safer bulk edits.', ['multiple files', 'batch', 'html', 'http', 'https', 'backup', 'in place'], 'replace-command', 'Reference-only here because file globbing and in-place editing happen in the shell, outside this single-buffer trainer.', 'reference'),
-        patternEntry('replace-digits', 'Replace digits with NUM', 's/[0-9]\\+/NUM/g', 'command', 'Substitution basics', 'Replace every run of digits with NUM.', ['number', 'numbers', 'digit', 'digits', 'replace numbers', 'replace digits', 'redact numbers', 'numeric']),
-        patternEntry('replace-words', 'Replace words with WORD', 's/[A-Za-z]\\+/WORD/g', 'command', 'Substitution basics', 'Replace every run of letters with WORD.', ['word', 'words', 'letters', 'alphabetic', 'replace words']),
-        patternEntry('collapse-spaces', 'Collapse repeated spaces', 's/  */ /g', 'command', 'Whitespace cleanup', 'Replace runs of spaces with one space.', ['space', 'spaces', 'whitespace', 'collapse', 'normalize', 'cleanup spacing']),
-        patternEntry('replace-tabs-with-spaces', 'Replace tabs with spaces', 's/\\t/    /g', 'command', 'Whitespace cleanup', 'Replace each tab escape with four spaces.', ['tab', 'tabs', 'spaces', 'indent', 'convert tabs', 'tab to spaces'], 'replace-command', 'Supported for typed tab escapes in the pattern. Paste a real tab into the pattern if your sed variant does not treat \\t specially.', 'partial'),
-        patternEntry('replace-spaces-with-tabs', 'Replace 4 spaces with a tab', 's/    /\\t/g', 'command', 'Whitespace cleanup', 'Convert groups of four literal spaces into tab escapes.', ['spaces to tabs', 'tab', 'indent', 'convert spaces', 'leading spaces'], 'replace-command', 'Partial because tab escape behavior differs across sed implementations.', 'partial'),
-        patternEntry('trim-leading-whitespace', 'Trim leading whitespace', 's/^[ \\t]*//', 'command', 'Whitespace cleanup', 'Remove spaces and tabs from the start of each selected line.', ['trim leading whitespace', 'trim left', 'leading whitespace', 'indent', 'remove indentation', 'lstrip']),
-        patternEntry('trim-trailing-whitespace', 'Trim trailing whitespace', 's/[ \\t]*$//', 'command', 'Whitespace cleanup', 'Remove spaces and tabs from the end of each selected line.', ['trim trailing whitespace', 'trim right', 'trailing whitespace', 'rstrip', 'strip spaces']),
-        patternEntry('trim-both-whitespace', 'Trim leading and trailing whitespace', 's/^[ \\t]*//;s/[ \\t]*$//', 'command', 'Whitespace cleanup', 'One sed script trims both sides of each line.', ['trim both', 'trim whitespace', 'strip', 'leading trailing', 'cleanup'], 'replace-command', 'Reference-only in this workbench because it currently executes one command, not semicolon-separated scripts.', 'reference'),
-        patternEntry('remove-carriage-returns', 'Remove carriage returns', 's/\\r$//', 'command', 'Whitespace cleanup', 'Convert DOS/Windows line endings toward Unix style by removing a trailing carriage return.', ['dos2unix', 'windows line endings', 'carriage return', 'crlf', 'remove cr']),
-        patternEntry('collapse-blank-lines', 'Collapse consecutive blank lines', '/^$/N;/^\\n$/D', 'command', 'Whitespace cleanup', 'Collapse multiple blank lines down to a single blank line.', ['collapse blank lines', 'consecutive blanks', 'keep one blank', 'paragraph spacing'], 'replace-command', 'Reference-only because N and D are multiline sed commands that this workbench does not simulate yet.', 'reference'),
-        patternEntry('delete-blank-lines', 'Delete blank lines', '/^$/d', 'command', 'Line deletion', 'Delete empty lines.', ['blank', 'empty', 'delete blank', 'remove empty', 'empty lines', 'delete empty lines', 'remove empty lines', 'cleanup', 'line cleanup', 'whitespace']),
-        patternEntry('delete-comment-lines-hash', 'Delete # comment lines', '/^#/d', 'command', 'Line deletion', 'Delete lines that begin with #.', ['delete comment lines', 'remove comments', 'strip comments', 'config', 'hash comments', 'comment lines']),
-        patternEntry('delete-comment-lines-whitespace-hash', 'Delete indented # comments', '/^[ \\t]*#/d', 'command', 'Line deletion', 'Delete comment lines even when spaces or tabs appear before #.', ['comment lines', 'indented comments', 'strip comments', 'config cleanup', 'delete comments']),
-        patternEntry('delete-containing-foo', 'Delete lines containing foo', '/foo/d', 'command', 'Line deletion', 'Delete lines that match foo.', ['delete', 'remove', 'matching lines', 'contains', 'drop lines', 'delete matching']),
-        patternEntry('delete-lines-not-matching', 'Delete lines not matching pattern', '/pattern/!d', 'command', 'Line deletion', 'Keep only matching lines by deleting every line that does not match.', ['delete lines not matching', 'keep matching', 'inverse delete', 'grep', 'filter include'], 'replace-command', 'Partial: this is standard sed, but the current parser does not support ! negation yet.', 'partial'),
-        patternEntry('delete-line-5', 'Delete specific line number', '5d', 'command', 'Line deletion', 'Remove line 5.', ['delete specific line number', 'line 5', 'remove line', 'delete line']),
-        patternEntry('delete-lines-5-10', 'Delete line range', '5,10d', 'command', 'Line deletion', 'Remove lines 5 through 10.', ['delete line range', 'remove range', 'line numbers', 'cut lines', '5 through 10']),
-        patternEntry('delete-start-end', 'Delete from START through END', '/START/,/END/d', 'command', 'Line deletion', 'Delete a block of lines from START through END.', ['delete block', 'remove section', 'between markers', 'remove block']),
-        patternEntry('print-line-3', 'Print line 3', '3p', 'command', 'Line printing', 'Print line number 3.', ['print', 'line number', 'third line']),
-        patternEntry('print-lines-2-5', 'Print lines 2 through 5', '2,5p', 'command', 'Line printing', 'Print lines 2 through 5.', ['print range', 'line range', 'between lines', 'lines 2 to 5']),
-        patternEntry('print-containing-foo', 'Print lines containing foo', '/foo/p', 'command', 'Line printing', 'Print lines that match foo.', ['print matching', 'contains', 'grep', 'filter', 'matching lines', 'extract matching lines']),
-        patternEntry('print-lines-not-matching', 'Print lines not matching pattern', '-n /pattern/!p', 'command', 'Line printing', 'Print only lines that do not match pattern.', ['print lines not matching', 'inverse match', 'grep -v', 'not containing', 'exclude'], 'replace-command', 'Partial: quiet mode is supported, but ! negation is listed as a recipe until parser support is added.', 'partial'),
-        patternEntry('print-start-end', 'Print from START through END', '/START/,/END/p', 'command', 'Line printing', 'Print the range beginning at a line matching START and ending at a line matching END.', ['range', 'between markers', 'start end', 'block', 'print block']),
-        patternEntry('add-line-numbers', 'Add line numbers to output', "sed = file.txt | sed 'N;s/\\\\n/ | /'", 'shell recipe', 'Text transformation', 'Use sed = and a second sed pass to format output as line number | content.', ['line numbers', 'numbered list', 'format lines', 'pipe'], 'replace-command', 'Reference-only because this uses two sed processes and shell piping.', 'reference'),
-        patternEntry('add-prefix', 'Add prefix to every line', 's/^/prefix: /', 'command', 'Anchors and line positions', 'Insert text at the start of each line.', ['prefix', 'start of line', 'beginning', 'insert before', 'prepend']),
-        patternEntry('add-suffix', 'Add suffix to every line', 's/$/ suffix/', 'command', 'Anchors and line positions', 'Insert text at the end of each line.', ['suffix', 'end of line', 'append', 'insert after']),
-        patternEntry('wrap-lines-in-quotes', 'Wrap each line in quotes', 's/.*/"&"/', 'command', 'Text transformation', 'Surround every whole line with double quotes by reusing the entire match.', ['wrap each line in quotes', 'quote lines', 'surround line', 'double quotes', 'csv quote'], 'replace-command', 'Partial: & is standard sed replacement syntax, but this workbench explains it less deeply than capture backreferences.', 'partial'),
-        patternEntry('comma-list-to-lines', 'Turn comma-separated list into lines', 's/,/\\n/g', 'command', 'Text transformation', 'Replace commas with newline escapes to split a simple comma-separated list.', ['comma separated list into lines', 'csv to lines', 'split comma', 'list to lines'], 'replace-command', 'Partial because real sed newline replacement syntax varies by implementation.', 'partial'),
-        patternEntry('lines-to-comma-list', 'Turn lines into comma-separated list', ':a;N;$!ba;s/\\n/, /g', 'command', 'Text transformation', 'Join all lines, then replace newlines with comma-space separators.', ['lines into comma-separated list', 'join lines', 'comma list', 'one line'], 'replace-command', 'Reference-only because labels, branches, N, and full-buffer scripts are outside this workbench.', 'reference'),
-        patternEntry('csv-comma-cleanup', 'CSV-ish comma cleanup', 's/[ \\t]*,[ \\t]*/,/g', 'command', 'Data cleanup', 'Remove spaces around commas in simple CSV-ish text.', ['csv cleanup', 'comma cleanup', 'spaces around commas', 'normalize csv', 'comma-separated']),
-        patternEntry('clean-csv-chain', 'Clean CSV files', `sed -e 's/^[ \\t]*//' -e 's/[ \\t]*$//' -e 's/"//g' -e '/^$/d' -e 's/,\\{2,\\}/,NA,/g' data.csv`, 'shell recipe', 'Data cleanup', 'A chain that trims whitespace, removes quotes, drops blank lines, and fills simple missing CSV values.', ['csv', 'data cleanup', 'missing values', 'NA', 'quotes', 'blank lines'], 'replace-command', 'Reference-only because this uses multiple -e scripts and file input.', 'reference'),
-        patternEntry('extract-inside-double-quotes', 'Extract text inside quotes', 's/.*"\\([^"]*\\)".*/\\1/', 'command', 'Extraction', 'Keep the text inside the first pair of double quotes on a line.', ['extract text inside quotes', 'quoted text', 'inside double quotes', 'capture', 'between quotes']),
-        patternEntry('extract-after-colon', 'Extract text after colon', 's/^[^:]*:[ \\t]*//', 'command', 'Extraction', 'Remove everything through the first colon and optional following whitespace.', ['extract text after colon', 'after colon', 'key value', 'value', 'right of colon']),
-        patternEntry('extract-before-colon', 'Extract text before colon', 's/:.*//', 'command', 'Extraction', 'Remove the first colon and everything after it.', ['extract text before colon', 'before colon', 'key value', 'key', 'left of colon']),
-        patternEntry('extract-errors-timestamps', 'Extract errors with timestamps and messages', 's/\\(.*\\) ERROR: \\(.*\\)/\\1 | \\2/p', 'command', 'Log file analysis', 'Reformat matching ERROR lines to show timestamp-ish text and message text.', ['error logs', 'timestamp', 'message', 'extract errors', 'log analysis'], 'replace-command', 'Use with -n in real sed when you only want changed ERROR lines printed: sed -n ...', 'partial'),
-        patternEntry('redact-email-ish', 'Redact email-ish strings', 's/[A-Za-z0-9._%+-]\\+@[A-Za-z0-9.-]\\+\\.[A-Za-z][A-Za-z]*/[EMAIL]/g', 'command', 'Redaction', 'Replace email-like strings with [EMAIL].', ['redact email', 'email address', 'privacy', 'pii', 'mask email', 'sensitive data']),
-        patternEntry('redact-phone-ish', 'Redact phone-ish numbers', 's/[0-9][0-9() .+-]\\{6,\\}[0-9]/[PHONE]/g', 'command', 'Redaction', 'Replace simple phone-like number runs with [PHONE].', ['redact phone', 'phone number', 'telephone', 'privacy', 'pii', 'mask phone'], 'replace-command', 'Partial because phone formats are messy and this intentionally simple regex may over-match.', 'partial'),
-        patternEntry('redact-bearer-api-keys', 'Redact leaked bearer API keys in logs', "find /var/log -name '*.log' -exec sed -i 's/Bearer sk_live_[a-zA-Z0-9]*/Bearer [REDACTED]/g' {} \\\\;", 'shell recipe', 'Log file analysis', 'Find log files and redact simple leaked live API key tokens in place.', ['redact sensitive data', 'api key', 'bearer token', 'logs', 'find exec', 'secret'], 'replace-command', 'Reference-only because this combines find, file edits, and a sed substitution.', 'reference'),
-        patternEntry('strip-html-ish-tags', 'Strip HTML-ish tags (simple)', 's/<[^>]*>//g', 'command', 'Data cleanup', 'Remove simple angle-bracket tags. This is not a real HTML parser.', ['strip html tags', 'remove html-ish tags', 'markup', 'simple not parser', 'xml tags']),
-        patternEntry('uncomment-ssl-lines', 'Uncomment lines matching SSL', '/^#.*SSL/s/^#//', 'command', 'Configuration file operations', 'For commented lines containing SSL, remove the leading #.', ['uncomment', 'config', 'ssl', 'apache', 'enable setting', 'comment'], 'replace-command', 'Partial: address + substitution is valid sed, but the current workbench does not execute addressed substitutions yet.', 'partial'),
-        patternEntry('change-ini-setting-section', 'Change setting in a specific INI section', '/\\[database\\]/,/\\[/s/host=localhost/host=db.example.com/g', 'command', 'Configuration file operations', 'Update host only inside the database section of an INI-like file.', ['ini', 'config section', 'database', 'host setting', 'range substitution'], 'replace-command', 'Partial: range addresses are supported for p/d, but addressed substitutions are reference material for now.', 'partial'),
-        patternEntry('remove-debug-production', 'Remove DEBUG lines from production blocks', '/\\[PRODUCTION\\]/{ /DEBUG:/d; }', 'command', 'Log file analysis', 'Delete DEBUG lines only within production-marked blocks.', ['production logs', 'debug lines', 'conditional delete', 'log cleanup'], 'replace-command', 'Reference-only because brace groups and nested addresses are outside this workbench.', 'reference'),
-        patternEntry('swap-two-words', 'Swap two words', 's/\\([A-Za-z]\\+\\) \\([A-Za-z]\\+\\)/\\2 \\1/', 'command', 'Captures and backreferences', 'Capture two words and reverse their order.', ['swap', 'reverse', 'capture', 'backreference', 'two words', 'swap words', 'swap fields']),
-        patternEntry('swap-comma-columns', 'Swap two comma columns', 's/\\([^,]*\\), \\(.*\\)/\\2 \\1/', 'command', 'Text transformation', 'Convert simple “last, first” text into “first last”.', ['swap columns', 'swap fields', 'last first', 'comma fields', 'names']),
-        patternEntry('wrap-digits', 'Wrap digits in brackets', 's/\\([0-9]\\+\\)/[\\1]/g', 'command', 'Captures and backreferences', 'Capture each run of digits and reuse it inside brackets.', ['capture', 'backreference', 'digits', 'wrap', 'brackets', 'reuse captured text']),
-        patternEntry('keep-id-number', 'Keep ID number', 's/id=\\([0-9]\\+\\)/ID:\\1/g', 'command', 'Captures and backreferences', 'Capture the number after id= and reuse it in the replacement.', ['id', 'capture', 'number', 'reuse', 'backreference', 'keep part of match']),
-        patternEntry('quote-each-word', 'Surround each word with quotes', 's/\\([A-Za-z][A-Za-z]*\\)/"\\1"/g', 'command', 'Captures and backreferences', 'Capture each word and place double quotes around it.', ['quote', 'wrap', 'word', 'capture', 'surround words']),
-        patternEntry('reuse-first-capture', 'Reuse first captured text', '\\1', 'replacement', 'Captures and backreferences', 'Insert the text captured by the first capture group in a replacement.', ['backreference', 'capture', 'reuse', 'replacement', 'group 1'], 'insert-at-cursor'),
-        patternEntry('whole-match-replacement', 'Reuse whole match', '&', 'replacement', 'Captures and backreferences', 'In sed replacements, & means the entire matched text.', ['whole match', 'ampersand', 'replacement', 'reuse match'], 'insert-at-cursor'),
-        patternEntry('match-blank-line', 'Match blank line', '^$', 'fragment', 'Anchors and line positions', 'Matches a line with nothing between start and end.', ['blank', 'empty', 'line', 'anchor'], 'insert-at-cursor'),
-        patternEntry('start-of-line', 'Start of line', '^', 'fragment', 'Anchors and line positions', 'Anchor matching the beginning of a line.', ['anchor', 'beginning', 'start'], 'insert-at-cursor'),
-        patternEntry('end-of-line', 'End of line', '$', 'fragment', 'Anchors and line positions', 'Anchor matching the end of a line.', ['anchor', 'ending', 'end'], 'insert-at-cursor'),
-        patternEntry('one-digit', 'One digit', '[0-9]', 'fragment', 'Regex fragments', 'Matches one digit.', ['digit', 'number', '0 through 9'], 'insert-at-cursor'),
-        patternEntry('one-or-more-digits', 'One or more digits', '[0-9]\\+', 'fragment', 'Regex fragments', 'Matches a run of one or more digits.', ['digits', 'numbers', 'numeric', 'one or more'], 'insert-at-cursor'),
-        patternEntry('lowercase-letters', 'Lowercase letters', '[a-z]\\+', 'fragment', 'Regex fragments', 'Matches a run of lowercase letters.', ['lowercase', 'letters', 'word'], 'insert-at-cursor'),
-        patternEntry('uppercase-letters', 'Uppercase letters', '[A-Z]\\+', 'fragment', 'Regex fragments', 'Matches a run of uppercase letters.', ['uppercase', 'letters', 'caps'], 'insert-at-cursor'),
-        patternEntry('letters', 'Letters', '[A-Za-z]\\+', 'fragment', 'Regex fragments', 'Matches a run of letters.', ['letters', 'alpha', 'alphabetic', 'word'], 'insert-at-cursor'),
-        patternEntry('wordish-token', 'Word-ish token', '[A-Za-z0-9_]\\+', 'fragment', 'Regex fragments', 'Matches letters, digits, and underscores.', ['word', 'identifier', 'token', 'variable'], 'insert-at-cursor'),
-        patternEntry('any-character', 'Any character', '.', 'fragment', 'Regex fragments', 'Matches any single character.', ['dot', 'anything', 'wildcard'], 'insert-at-cursor'),
-        patternEntry('literal-dot', 'Literal dot', '\\.', 'fragment', 'Regex fragments', 'Matches an actual period character.', ['period', 'dot', 'literal'], 'insert-at-cursor'),
-        patternEntry('capture-group', 'Capture group', '\\(...\\)', 'fragment', 'Regex fragments', 'Captures the matched text so it can be reused as \\1, \\2, etc.', ['capture', 'group', 'backreference', 'save match'], 'insert-at-cursor'),
-        patternEntry('backreference-1', 'Backreference 1', '\\1', 'fragment', 'Regex fragments', 'Reuse the text captured by the first capture group.', ['backreference', 'capture', 'reuse', 'group 1'], 'insert-at-cursor'),
-        patternEntry('one-or-more', 'One or more', '\\+', 'fragment', 'Regex fragments', 'In basic sed regex, repeats the previous item one or more times.', ['plus', 'repeat', 'one or more', 'quantifier'], 'insert-at-cursor'),
-        patternEntry('zero-or-more', 'Zero or more', '*', 'fragment', 'Regex fragments', 'Repeats the previous item zero or more times.', ['star', 'repeat', 'zero or more', 'quantifier'], 'insert-at-cursor'),
-        patternEntry('specific-line-address', 'Specific line address', '3', 'address', 'Address fragments', 'Select line 3.', ['address', 'line number', 'specific line'], 'insert-at-cursor'),
-        patternEntry('line-range-address', 'Line range address', '2,5', 'address', 'Address fragments', 'Select lines 2 through 5.', ['address', 'range', 'line numbers'], 'insert-at-cursor'),
-        patternEntry('regex-address', 'Regex address', '/foo/', 'address', 'Address fragments', 'Select lines matching foo.', ['address', 'matching line', 'contains', 'regex'], 'insert-at-cursor'),
-        patternEntry('regex-range-address', 'Regex range address', '/START/,/END/', 'address', 'Address fragments', 'Select from a line matching START through a line matching END.', ['address', 'range', 'between markers', 'block'], 'insert-at-cursor')
+        patternEntry('replace-literal-text', 'Replace literal text', 's/OLD/NEW/g', 'recipe', 'Substitution basics', 'Replace every OLD with NEW on each line.', ['replace', 'find replace', 'substitute', 'change text', 'old new', 'literal', 'search replace'], 'replace-command', '', 'supported', 'OLD alpha\nOLD beta', 'NEW alpha\nNEW beta', ['OLD', 'NEW']),
+        patternEntry('replace-first-foo', 'Replace first foo with bar', 's/foo/bar/', 'command', 'Substitution basics', 'Replace the first foo on each selected line.', ['replace', 'substitute', 'first match', 'foo bar', 'change foo to bar'], 'replace-command', '', 'supported', 'foo foo', 'bar foo', []),
+        patternEntry('replace-all-foo', 'Replace all foo with bar', 's/foo/bar/g', 'command', 'Substitution basics', 'Replace every foo on each selected line.', ['replace all', 'global', 'substitute', 'foo bar', 'find and replace'], 'replace-command', '', 'supported', 'foo foo', 'bar bar', []),
+        patternEntry('delete-matching-text', 'Delete matching text', 's/PATTERN//g', 'recipe', 'Substitution basics', 'Delete text that matches PATTERN without deleting the line.', ['remove text', 'delete text', 'strip text', 'erase match', 'empty replacement'], 'replace-command', '', 'supported', 'abc123def', 'abcdef', ['PATTERN']),
+        patternEntry('replace-digits', 'Replace digits with NUM', 's/[0-9]\\+/NUM/g', 'command', 'Substitution basics', 'Replace every run of digits with NUM.', ['digit', 'digits', 'number', 'numbers', 'numeric', 'integer', 'redact numbers', 'replace nums'], 'replace-command', '', 'supported', 'alpha 123\nbeta 456', 'alpha NUM\nbeta NUM', []),
+        patternEntry('replace-words', 'Replace words with WORD', 's/[A-Za-z]\\+/WORD/g', 'command', 'Substitution basics', 'Replace every run of letters with WORD.', ['word', 'words', 'letters', 'alphabetic', 'replace words', 'token'], 'replace-command', '', 'supported', 'alpha 123', 'WORD 123', []),
+        patternEntry('replace-paths-pipe-delimiter', 'Replace paths without slash escaping', 's|/var/www/old|/var/www/new|g', 'command', 'Path and filename cleanup', 'Use | as the substitution delimiter so slash-heavy paths stay readable.', ['path', 'paths', 'slash', 'delimiter', 'directory', 'replace path', 'alternate delimiter'], 'replace-command', '', 'supported', '/var/www/old/index.html', '/var/www/new/index.html', ['OLD', 'NEW']),
+        patternEntry('replace-text-files-backup', 'Replace text in files with backup', 'sed -i.bak \'s/OLD/NEW/g\' file.txt', 'reference', 'Batch file operations', 'Run a global substitution in-place while creating a .bak backup file.', ['replace in file', 'in place', 'backup', 'sed -i', 'batch edit', 'safe replace'], 'replace-command', 'Reference-only: file editing happens in the shell outside this single-buffer trainer.', 'reference', '', '', ['OLD', 'NEW']),
+        patternEntry('replace-http-https-multiple-files', 'Replace http with https in HTML files', 'sed -i.bak \'s/http:/https:/g\' *.html', 'reference', 'Batch file operations', 'Update matching files in place and keep backups for safer bulk edits.', ['multiple files', 'batch', 'html', 'http', 'https', 'backup', 'in place'], 'replace-command', 'Reference-only: file globbing and in-place editing happen in the shell.', 'reference'),
+        patternEntry('trim-leading-spaces', 'Trim leading spaces', 's/^  *//', 'recipe', 'Whitespace cleanup', 'Remove leading spaces from each line.', ['trim leading', 'leading spaces', 'trim left', 'lstrip', 'remove indentation', 'cleanup', 'clean up', 'tidy', 'normalize', 'fix text'], 'replace-command', '', 'supported', '  alpha\n beta', 'alpha\nbeta', []),
+        patternEntry('trim-trailing-spaces', 'Trim trailing spaces', 's/  *$//', 'recipe', 'Whitespace cleanup', 'Remove trailing spaces from each line.', ['trim trailing', 'trailing spaces', 'trim right', 'rstrip', 'strip spaces', 'cleanup', 'clean up', 'tidy', 'normalize', 'fix text'], 'replace-command', '', 'supported', 'alpha  \nbeta ', 'alpha\nbeta', []),
+        patternEntry('trim-leading-whitespace', 'Trim leading spaces or tabs', 's/^[ \\t]*//', 'recipe', 'Whitespace cleanup', 'Remove spaces and tabs from the start of each line.', ['trim leading whitespace', 'indent', 'remove indentation', 'lstrip', 'tabs', 'cleanup', 'clean up', 'tidy', 'normalize', 'fix text'], 'replace-command', '', 'supported', '\talpha\n  beta', 'alpha\nbeta', []),
+        patternEntry('trim-trailing-whitespace', 'Trim trailing spaces or tabs', 's/[ \\t]*$//', 'recipe', 'Whitespace cleanup', 'Remove spaces and tabs from the end of each line.', ['trim trailing whitespace', 'rstrip', 'strip whitespace', 'tabs', 'cleanup', 'clean up', 'tidy', 'normalize', 'fix text'], 'replace-command', '', 'supported', 'alpha\t\nbeta  ', 'alpha\nbeta', []),
+        patternEntry('collapse-repeated-spaces', 'Collapse repeated spaces', 's/  */ /g', 'recipe', 'Whitespace cleanup', 'Replace runs of spaces with one space.', ['space', 'spaces', 'collapse', 'normalize spacing', 'cleanup spacing', 'cleanup', 'clean up', 'tidy', 'normalize', 'fix text'], 'replace-command', '', 'supported', 'a   b\nc  d', 'a b\nc d', []),
+        patternEntry('collapse-whitespace-runs', 'Collapse whitespace runs', 's/[ \\t][ \\t]*/ /g', 'recipe', 'Whitespace cleanup', 'Replace repeated spaces or tabs with one space.', ['whitespace', 'collapse whitespace', 'tabs spaces', 'normalize whitespace', 'cleanup', 'clean up', 'tidy', 'normalize', 'fix text'], 'replace-command', '', 'supported', 'a\t  b', 'a b', []),
+        patternEntry('delete-blank-lines', 'Delete blank lines', '/^$/d', 'recipe', 'Whitespace cleanup', 'Delete empty lines.', ['blank', 'empty', 'empty line', 'empty lines', 'blank line', 'blank lines', 'remove empty', 'remove blank', 'delete empty', 'delete blank', 'cleanup', 'strip empty', 'cleanup', 'clean up', 'tidy', 'normalize', 'fix text'], 'replace-command', '', 'supported', 'alpha\n\nbeta', 'alpha\nbeta', []),
+        patternEntry('delete-whitespace-only-lines', 'Delete whitespace-only lines', '/^[ \\t]*$/d', 'recipe', 'Whitespace cleanup', 'Delete blank lines even when they contain spaces or tabs.', ['blank spaces', 'empty rows', 'remove whitespace lines', 'delete blank', 'strip empty', 'cleanup', 'clean up', 'tidy', 'normalize', 'fix text'], 'replace-command', '', 'supported', 'alpha\n   \nbeta', 'alpha\nbeta', []),
+        patternEntry('replace-tabs-with-spaces', 'Replace tabs with spaces', 's/\\t/    /g', 'recipe', 'Whitespace cleanup', 'Replace tab escapes with four spaces.', ['tab', 'tabs', 'spaces', 'indent', 'convert tabs', 'tab to spaces', 'cleanup', 'clean up', 'tidy', 'normalize', 'fix text'], 'replace-command', '', 'supported', 'a\tb', 'a    b', []),
+        patternEntry('replace-four-spaces-with-tab', 'Replace 4 spaces with a tab', 's/    /\\t/g', 'recipe', 'Whitespace cleanup', 'Convert groups of four spaces into tab escapes.', ['spaces to tabs', 'tab', 'indent', 'convert spaces', 'cleanup', 'clean up', 'tidy', 'normalize', 'fix text'], 'replace-command', '', 'supported', 'a    b', 'a\tb', []),
+        patternEntry('remove-carriage-returns', 'Remove trailing carriage returns', 's/\\r$//', 'recipe', 'Whitespace cleanup', 'Remove a trailing carriage return from Windows CRLF text.', ['dos2unix', 'windows line endings', 'carriage return', 'crlf', 'remove cr', 'cleanup', 'clean up', 'tidy', 'normalize', 'fix text'], 'replace-command', '', 'supported', 'alpha\r\nbeta\r', 'alpha\nbeta', []),
+        patternEntry('trim-both-whitespace', 'Trim both ends', 's/^[ \\t]*//; s/[ \\t]*$//', 'recipe', 'Whitespace cleanup', 'Trim leading and trailing whitespace in one sed script.', ['trim both', 'strip both', 'leading trailing', 'cleanup whitespace'], 'replace-command', 'Partial/reference: command chains are standard sed, but this workbench focuses on one command at a time.', 'partial', '  alpha  ', 'alpha', []),
+        patternEntry('collapse-multiple-blank-lines', 'Collapse multiple blank lines', '/^$/N;/^\\n$/D', 'recipe', 'Whitespace cleanup', 'Collapse runs of blank lines to one blank line.', ['collapse blank lines', 'multiple blank', 'paragraph spacing', 'keep one blank'], 'replace-command', 'Reference-only: uses multiline pattern-space commands N and D.', 'reference'),
+        patternEntry('print-matching-lines', 'Print only matching lines', '/PATTERN/p', 'recipe', 'Line filtering', 'Print lines matching PATTERN. Use with -n for grep-like output.', ['print', 'show', 'keep', 'filter', 'grep', 'matching', 'contains', 'only lines'], 'replace-command', '', 'supported', 'alpha\nbeta', 'alpha', ['PATTERN']),
+        patternEntry('delete-matching-lines', 'Delete matching lines', '/PATTERN/d', 'recipe', 'Line filtering', 'Delete lines matching PATTERN.', ['delete', 'remove', 'drop', 'filter out', 'matching lines'], 'replace-command', '', 'supported', 'keep\nPATTERN hit', 'keep', ['PATTERN']),
+        patternEntry('delete-nonmatching-lines', 'Delete non-matching lines', '/PATTERN/!d', 'recipe', 'Line filtering', 'Keep only matching lines by deleting lines that do not match.', ['keep matching', 'grep', 'filter include', 'delete non matching', 'contains only'], 'replace-command', 'Partial: standard sed negation, but parser support is limited.', 'partial', 'PATTERN hit\nmiss', 'PATTERN hit', ['PATTERN']),
+        patternEntry('print-nonmatching-lines', 'Print non-matching lines', '/PATTERN/!p', 'recipe', 'Line filtering', 'Print lines that do not match PATTERN.', ['grep -v', 'inverse match', 'exclude', 'not containing', 'print non matching'], 'replace-command', 'Partial: standard sed negation, but parser support is limited.', 'partial', 'hit\nPATTERN', 'hit', ['PATTERN']),
+        patternEntry('print-first-10-lines', 'Print first N lines', '1,10p', 'recipe', 'Line filtering', 'Print lines 1 through 10.', ['head', 'first lines', 'top lines', 'line range', 'print range'], 'replace-command', '', 'supported', 'one\ntwo', 'one\ntwo', []),
+        patternEntry('delete-first-10-lines', 'Delete first N lines', '1,10d', 'recipe', 'Line filtering', 'Delete lines 1 through 10.', ['drop header', 'skip first lines', 'remove top', 'delete range'], 'replace-command', '', 'supported', 'header\ndata', '', []),
+        patternEntry('print-line-range', 'Print line range', '2,5p', 'recipe', 'Line filtering', 'Print a numbered line range.', ['range', 'line numbers', 'print lines', 'section'], 'replace-command', '', 'supported', 'one\ntwo\nthree', 'two\nthree', []),
+        patternEntry('delete-line-range', 'Delete line range', '2,5d', 'recipe', 'Line filtering', 'Delete a numbered line range.', ['range', 'delete lines', 'remove section'], 'replace-command', '', 'supported', 'one\ntwo\nthree', 'one', []),
+        patternEntry('print-between-markers', 'Print between markers', '/START/,/END/p', 'recipe', 'Line filtering', 'Print lines from START through END.', ['between markers', 'block', 'section', 'range', 'print block'], 'replace-command', '', 'supported', 'x\nSTART\na\nEND\ny', 'START\na\nEND', ['START', 'END']),
+        patternEntry('delete-marker-block', 'Delete marker block', '/START/,/END/d', 'recipe', 'Line filtering', 'Delete lines from START through END.', ['delete block', 'remove block', 'between markers', 'section'], 'replace-command', '', 'supported', 'x\nSTART\na\nEND\ny', 'x\ny', ['START', 'END']),
+        patternEntry('print-after-marker', 'Print after marker', '/START/,$p', 'recipe', 'Line filtering', 'Print from START to the end of the input.', ['after marker', 'from marker', 'tail from', 'range'], 'replace-command', '', 'supported', 'a\nSTART\nb', 'START\nb', ['START', 'END']),
+        patternEntry('delete-after-marker', 'Delete after marker', '/START/,$d', 'recipe', 'Line filtering', 'Delete from START through the end.', ['delete after marker', 'truncate', 'remove tail'], 'replace-command', '', 'supported', 'a\nSTART\nb', 'a', ['START', 'END']),
+        patternEntry('print-before-marker', 'Print before marker', '1,/END/p', 'recipe', 'Line filtering', 'Print from the first line through END.', ['before marker', 'until marker', 'head until', 'range'], 'replace-command', '', 'supported', 'a\nEND\nb', 'a\nEND', ['END']),
+        patternEntry('line-beginning-foo', 'Line beginning with foo', '/^foo/p', 'recipe', 'Anchors and line positions', 'Print lines that start with foo.', ['start with', 'begins with', 'prefix', 'anchor', 'foo'], 'replace-command', '', 'supported', 'foo\nbarfoo', 'foo', []),
+        patternEntry('line-ending-foo', 'Line ending with foo', '/foo$/p', 'recipe', 'Anchors and line positions', 'Print lines that end with foo.', ['ends with', 'suffix', 'anchor', 'foo'], 'replace-command', '', 'supported', 'foo\nfoobar', 'foo', []),
+        patternEntry('add-prefix', 'Add prefix to every line', 's/^/PREFIX/', 'recipe', 'Anchors and line positions', 'Insert PREFIX at the start of every line.', ['prefix every line', 'prepend', 'line start', 'insert marker at start'], 'replace-command', '', 'supported', 'alpha', 'PREFIXalpha', ['PREFIX']),
+        patternEntry('add-suffix', 'Add suffix to every line', 's/$/SUFFIX/', 'recipe', 'Anchors and line positions', 'Append SUFFIX at the end of every line.', ['suffix every line', 'append', 'line end', 'append marker at end'], 'replace-command', '', 'supported', 'alpha', 'alphaSUFFIX', ['SUFFIX']),
+        patternEntry('blank-line-address', 'Blank line address', '/^$/', 'address', 'Anchors and line positions', 'Address matching empty lines.', ['blank line', 'empty line', 'anchor'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('nonblank-line-address', 'Nonblank line address', '/./', 'address', 'Anchors and line positions', 'Address matching lines with at least one character.', ['nonblank', 'not empty', 'has text'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('wrap-digits', 'Wrap digits in brackets', 's/\\([0-9]\\+\\)/[\\1]/g', 'recipe', 'Captures and backreferences', 'Capture each number and reuse it inside brackets.', ['capture', 'backreference', 'digits', 'wrap', 'brackets'], 'replace-command', '', 'supported', 'id 123', 'id [123]', []),
+        patternEntry('quote-each-word', 'Quote words', 's/\\([A-Za-z]\\+\\)/"\\1"/g', 'recipe', 'Captures and backreferences', 'Surround each word with double quotes.', ['quote words', 'wrap words', 'capture', 'double quotes'], 'replace-command', '', 'supported', 'alpha beta', '"alpha" "beta"', []),
+        patternEntry('swap-two-words', 'Swap two words', 's/\\([A-Za-z]\\+\\) \\([A-Za-z]\\+\\)/\\2 \\1/', 'recipe', 'Captures and backreferences', 'Capture two words and reverse them.', ['swap', 'reverse', 'capture', 'backreference', 'two words'], 'replace-command', '', 'supported', 'first last', 'last first', []),
+        patternEntry('swap-first-two-csv-fields', 'Swap first two comma fields', 's/\\([^,]*\\),\\([^,]*\\)/\\2,\\1/', 'recipe', 'Captures and backreferences', 'Swap the first two simple comma-separated fields.', ['swap fields', 'csv-ish', 'comma fields', 'not quoted csv'], 'replace-command', 'Simple comma-separated text, not quoted CSV.', 'supported', 'alpha,beta,gamma', 'beta,alpha,gamma', []),
+        patternEntry('keep-captured-part', 'Keep only captured part', 's/.*\\(PATTERN\\).*/\\1/', 'recipe', 'Captures and backreferences', 'Keep only the captured PATTERN from a line.', ['extract', 'capture only', 'keep match', 'discard rest'], 'replace-command', '', 'supported', 'abcPATTERNxyz', 'PATTERN', ['PATTERN']),
+        patternEntry('reformat-key-value', 'Reformat key=value', 's/^\\([^=]*\\)=\\(.*\\)$/\\2 (\\1)/', 'recipe', 'Captures and backreferences', 'Turn key=value into value (key).', ['key value', 'config', 'reformat', 'capture'], 'replace-command', '', 'supported', 'name=alice', 'alice (name)', []),
+        patternEntry('name-colon-value', 'Convert name: value', 's/\\([^:]*\\): \\(.*\\)/\\2 (\\1)/', 'recipe', 'Captures and backreferences', 'Convert name: value into value (name).', ['colon', 'label value', 'reformat'], 'replace-command', '', 'supported', 'color: blue', 'blue (color)', []),
+        patternEntry('reuse-prefix', 'Reuse key prefix', 's/^\\(KEY=\\).*/\\1VALUE/', 'recipe', 'Captures and backreferences', 'Replace a value while reusing the captured KEY= prefix.', ['reuse prefix', 'config', 'key value', 'capture'], 'replace-command', '', 'supported', 'KEY=old', 'KEY=VALUE', ['KEY', 'VALUE']),
+        patternEntry('move-extension-suffix', 'Move extension-like suffix', 's/^\\(.*\\)\\.\\([^.]*\\)$/\\2: \\1/', 'recipe', 'Captures and backreferences', 'Move the final dot suffix to the front for simple filenames.', ['extension', 'filename', 'suffix', 'capture'], 'replace-command', '', 'supported', 'report.txt', 'txt: report', []),
+        patternEntry('extract-digits', 'Extract digits', 's/.*\\([0-9]\\+\\).*/\\1/', 'recipe', 'Extraction tricks', 'Keep a captured run of digits; replacement trick, not a parser.', ['extract numbers', 'digits only', 'keep digits', 'replacement trick', 'not parser'], 'replace-command', 'Extraction-ish: sed edits lines, so this keeps captured text by replacing the whole line.', 'supported', 'id=123 ok', '123', []),
+        patternEntry('extract-value-after-key', 'Extract value after key=', 's/.*KEY=\\([^ ]*\\).*/\\1/', 'recipe', 'Extraction tricks', 'Keep the simple non-space value after KEY=.', ['extract value', 'key value', 'after key', 'config', 'replacement trick', 'not parser'], 'replace-command', 'Extraction-ish: sed edits lines, so this keeps captured text by replacing the whole line.', 'supported', 'x KEY=abc y', 'abc', ['KEY']),
+        patternEntry('extract-text-after-colon', 'Extract text after colon', 's/.*: //', 'recipe', 'Extraction tricks', 'Drop everything through the final colon-space.', ['after colon', 'right of colon', 'extract value', 'replacement trick', 'not parser'], 'replace-command', 'Extraction-ish: sed edits lines, so this keeps captured text by replacing the whole line.', 'supported', 'name: alice', 'alice', []),
+        patternEntry('extract-text-before-colon', 'Extract text before colon', 's/:.*//', 'recipe', 'Extraction tricks', 'Drop the colon and everything after it.', ['before colon', 'left of colon', 'extract key', 'replacement trick', 'not parser'], 'replace-command', 'Extraction-ish: sed edits lines, so this keeps captured text by replacing the whole line.', 'supported', 'name: alice', 'name', []),
+        patternEntry('extract-quoted-text', 'Extract quoted text', 's/.*"\\([^"]*\\)".*/\\1/', 'recipe', 'Extraction tricks', 'Keep text inside simple double quotes.', ['quoted text', 'inside quotes', 'extract string', 'replacement trick', 'not parser'], 'replace-command', 'Extraction-ish: sed edits lines, so this keeps captured text by replacing the whole line.', 'supported', 'say "hello" now', 'hello', []),
+        patternEntry('extract-bracketed-text', 'Extract bracketed text', 's/.*\\[\\([^]]*\\)\\].*/\\1/', 'recipe', 'Extraction tricks', 'Keep text inside simple square brackets.', ['bracketed', 'inside brackets', 'extract section', 'replacement trick', 'not parser'], 'replace-command', 'Extraction-ish: sed edits lines, so this keeps captured text by replacing the whole line.', 'supported', 'x [abc] y', 'abc', []),
+        patternEntry('extract-basename', 'Extract basename-ish', 's|.*/||', 'recipe', 'Extraction tricks', 'Remove directory prefixes from slash-separated paths.', ['basename', 'filename', 'path', 'last path part', 'replacement trick', 'not parser'], 'replace-command', 'Extraction-ish: sed edits lines, so this keeps captured text by replacing the whole line.', 'supported', '/tmp/report.txt', 'report.txt', []),
+        patternEntry('extract-extension', 'Extract file extension-ish', 's/.*\\.//', 'recipe', 'Extraction tricks', 'Keep text after the final dot.', ['extension', 'file suffix', 'path', 'replacement trick', 'not parser'], 'replace-command', 'Extraction-ish: sed edits lines, so this keeps captured text by replacing the whole line.', 'supported', 'report.txt', 'txt', []),
+        patternEntry('redact-numbers', 'Redact numbers', 's/[0-9]\\+/NUM/g', 'recipe', 'Redaction recipes', 'Replace digit runs with NUM.', ['redact numbers', 'replace digits', 'numeric', 'integer', 'redact', 'mask', 'privacy'], 'replace-command', '', 'supported', 'user 42', 'user NUM', []),
+        patternEntry('redact-email-ish', 'Redact email-ish strings', 's/[A-Za-z0-9._%+-]\\+@[A-Za-z0-9.-]\\+\\.[A-Za-z][A-Za-z]*/EMAIL/g', 'recipe', 'Redaction recipes', 'Redact simple email-like strings.', ['email', 'emails', 'redact email', 'privacy', 'simple pattern', 'redact', 'mask', 'privacy'], 'replace-command', 'Simple pattern, not full validation.', 'supported', 'me a@example.com', 'me EMAIL', []),
+        patternEntry('redact-ipv4-ish', 'Redact IPv4-ish addresses', 's/[0-9]\\+\\.[0-9]\\+\\.[0-9]\\+\\.[0-9]\\+/IP/g', 'recipe', 'Redaction recipes', 'Redact simple IPv4-like addresses.', ['ip', 'ipv4', 'address', 'redact ip', 'simple pattern', 'redact', 'mask', 'privacy'], 'replace-command', 'Simple pattern, not full validation.', 'supported', 'from 10.0.0.1', 'from IP', []),
+        patternEntry('redact-quoted-strings', 'Redact quoted strings', 's/"[^"]*"/"REDACTED"/g', 'recipe', 'Redaction recipes', 'Replace simple double-quoted strings.', ['redact quotes', 'strings', 'privacy', 'redact', 'mask', 'privacy'], 'replace-command', '', 'supported', 'name="alice"', 'name="REDACTED"', []),
+        patternEntry('redact-password-value', 'Redact password value', 's/password=.*/password=REDACTED/', 'recipe', 'Redaction recipes', 'Replace everything after password=.', ['password', 'secret', 'config', 'redact value', 'redact', 'mask', 'privacy'], 'replace-command', '', 'supported', 'password=hunter2', 'password=REDACTED', []),
+        patternEntry('redact-token-value', 'Redact token value', 's/token=.*/token=REDACTED/', 'recipe', 'Redaction recipes', 'Replace everything after token=.', ['token', 'secret', 'api key', 'redact value', 'redact', 'mask', 'privacy'], 'replace-command', '', 'supported', 'token=abc123', 'token=REDACTED', []),
+        patternEntry('redact-hex-strings', 'Redact hex strings', 's/[0-9A-Fa-f][0-9A-Fa-f]*/HEX/g', 'recipe', 'Redaction recipes', 'Replace hex-looking runs.', ['hex', 'hash', 'id', 'redact hex', 'redact', 'mask', 'privacy'], 'replace-command', '', 'supported', 'sha=deadBEEF', 'sha=HEX', []),
+        patternEntry('change-key-value', 'Change key=value', 's/^KEY=.*/KEY=VALUE/', 'recipe', 'Config-file edits', 'Replace a whole KEY= line with KEY=VALUE.', ['config', 'setting', 'change option', 'set value'], 'replace-command', '', 'supported', 'KEY=old', 'KEY=VALUE', ['KEY', 'VALUE']),
+        patternEntry('replace-value-after-key', 'Replace value after key=', 's/^\\(KEY=\\).*/\\1VALUE/', 'recipe', 'Config-file edits', 'Reuse KEY= and replace only the value.', ['config', 'reuse prefix', 'setting', 'key value'], 'replace-command', '', 'supported', 'KEY=old', 'KEY=VALUE', ['KEY', 'VALUE']),
+        patternEntry('comment-out-line', 'Comment out matching line', '/PATTERN/s/^/#/', 'recipe', 'Config-file edits', 'Prefix matching lines with #.', ['comment out', 'disable setting', 'hash comment', 'config'], 'replace-command', '', 'supported', 'option=true', '#option=true', ['PATTERN']),
+        patternEntry('uncomment-line', 'Uncomment matching line', '/PATTERN/s/^#//', 'recipe', 'Config-file edits', 'Remove one leading # from matching lines.', ['uncomment', 'enable setting', 'remove comment', 'config'], 'replace-command', '', 'supported', '#option=true', 'option=true', ['PATTERN']),
+        patternEntry('set-option-true', 'Set option true', 's/^OPTION=.*/OPTION=true/', 'recipe', 'Config-file edits', 'Set OPTION=true.', ['boolean', 'enable', 'config true', 'setting'], 'replace-command', '', 'supported', 'OPTION=false', 'OPTION=true', ['OPTION']),
+        patternEntry('set-option-false', 'Set option false', 's/^OPTION=.*/OPTION=false/', 'recipe', 'Config-file edits', 'Set OPTION=false.', ['boolean', 'disable', 'config false', 'setting'], 'replace-command', '', 'supported', 'OPTION=true', 'OPTION=false', ['OPTION']),
+        patternEntry('delete-setting-line', 'Delete setting line', '/^KEY=/d', 'recipe', 'Config-file edits', 'Delete a KEY= setting line.', ['delete setting', 'remove option', 'config', 'key line'], 'replace-command', '', 'supported', 'KEY=old\nOTHER=1', 'OTHER=1', ['KEY']),
+        patternEntry('remove-leading-timestamp', 'Remove leading timestamp', 's/^[0-9][0-9:-]* //', 'recipe', 'Log cleanup', 'Remove a simple leading timestamp token.', ['timestamp', 'logs', 'strip date'], 'replace-command', '', 'supported', '2026-05-31 msg', 'msg', []),
+        patternEntry('remove-bracketed-log-level', 'Remove bracketed log level', 's/^\\[[^]]*\\] //', 'recipe', 'Log cleanup', 'Remove a leading [INFO] or similar bracketed field.', ['log level', 'brackets', 'info error'], 'replace-command', '', 'supported', '[INFO] started', 'started', []),
+        patternEntry('extract-error-lines', 'Extract ERROR lines', '/ERROR/p', 'recipe', 'Log cleanup', 'Print lines containing ERROR.', ['error', 'logs', 'grep', 'show errors'], 'replace-command', '', 'supported', 'INFO ok\nERROR bad', 'ERROR bad', []),
+        patternEntry('delete-debug-lines', 'Delete DEBUG lines', '/DEBUG/d', 'recipe', 'Log cleanup', 'Delete DEBUG log lines.', ['debug', 'logs', 'remove noisy'], 'replace-command', '', 'supported', 'DEBUG x\nINFO y', 'INFO y', []),
+        patternEntry('redact-pids', 'Redact PIDs', 's/pid=[0-9]\\+/pid=PID/g', 'recipe', 'Log cleanup', 'Mask pid= numbers.', ['pid', 'process id', 'logs', 'redact'], 'replace-command', '', 'supported', 'pid=123 start', 'pid=PID start', []),
+        patternEntry('extract-after-error', 'Extract text after ERROR:', 's/.*ERROR: //', 'recipe', 'Log cleanup', 'Keep text after ERROR:.', ['error message', 'extract logs'], 'replace-command', '', 'supported', 'ts ERROR: failed', 'failed', []),
+        patternEntry('remove-markdown-heading-marker', 'Remove markdown heading marker', 's/^#* //', 'recipe', 'Markdown cleanup', 'Remove leading # heading markers and following space.', ['markdown', 'heading', 'title'], 'replace-command', '', 'supported', '### Title', 'Title', []),
+        patternEntry('remove-list-bullets', 'Remove list bullets', 's/^[-*] //', 'recipe', 'Markdown cleanup', 'Remove simple - or * list markers.', ['markdown', 'bullet', 'list'], 'replace-command', '', 'supported', '- item', 'item', []),
+        patternEntry('convert-bullets-to-dashes', 'Convert bullets to dashes', 's/^[-*] /- /', 'recipe', 'Markdown cleanup', 'Normalize simple list bullets to dashes.', ['markdown', 'bullets', 'normalize'], 'replace-command', '', 'supported', '* item', '- item', []),
+        patternEntry('prefix-quote-marker', 'Prefix quote marker', 's/^/> /', 'recipe', 'Markdown cleanup', 'Make every line a Markdown blockquote.', ['quote', 'blockquote', 'prefix'], 'replace-command', '', 'supported', 'note', '> note', []),
+        patternEntry('remove-quote-marker', 'Remove quote marker', 's/^> //', 'recipe', 'Markdown cleanup', 'Remove a Markdown blockquote marker.', ['unquote', 'blockquote', 'remove prefix'], 'replace-command', '', 'supported', '> note', 'note', []),
+        patternEntry('replace-slashes', 'Replace slashes', 's|/|-|g', 'recipe', 'Path and filename cleanup', 'Replace path separators with dashes.', ['slash', 'path', 'filename'], 'replace-command', '', 'supported', 'a/b/c', 'a-b-c', []),
+        patternEntry('extract-directory', 'Extract directory-ish', 's|/[^/]*$||', 'recipe', 'Path and filename cleanup', 'Keep the directory portion before the final slash.', ['dirname', 'directory', 'path'], 'replace-command', '', 'supported', '/tmp/report.txt', '/tmp', []),
+        patternEntry('spaces-to-underscores', 'Replace spaces with underscores', 's/ /_/g', 'recipe', 'Path and filename cleanup', 'Make names shell-friendlier by replacing spaces.', ['filename', 'slug', 'underscore'], 'replace-command', '', 'supported', 'my file.txt', 'my_file.txt', []),
+        patternEntry('underscores-to-spaces', 'Replace underscores with spaces', 's/_/ /g', 'recipe', 'Path and filename cleanup', 'Turn underscores back into spaces.', ['filename', 'readable'], 'replace-command', '', 'supported', 'my_file', 'my file', []),
+        patternEntry('remove-extension', 'Remove extension-ish', 's/\\.[^.]*$//', 'recipe', 'Path and filename cleanup', 'Remove the final dot suffix.', ['extension', 'filename', 'basename'], 'replace-command', '', 'supported', 'report.txt', 'report', []),
+        patternEntry('commas-to-tabs', 'Replace commas with tabs', 's/,/\\t/g', 'recipe', 'CSV-ish edits', 'Replace commas with tab escapes in simple comma text.', ['csv', 'tsv', 'comma', 'tabs'], 'replace-command', 'Simple comma-separated text, not quoted CSV.', 'supported', 'a,b', 'a\tb', []),
+        patternEntry('tabs-to-commas', 'Replace tabs with commas', 's/\\t/,/g', 'recipe', 'CSV-ish edits', 'Replace tabs with commas.', ['tsv', 'csv', 'tabs', 'comma'], 'replace-command', 'Simple comma-separated text, not quoted CSV.', 'supported', 'a\tb', 'a,b', []),
+        patternEntry('keep-first-comma-field', 'Keep first comma field', 's/,.*//', 'recipe', 'CSV-ish edits', 'Keep the first simple comma-separated field.', ['csv-ish', 'first field', 'column'], 'replace-command', 'Simple comma-separated text, not quoted CSV.', 'supported', 'a,b,c', 'a', []),
+        patternEntry('keep-second-comma-field', 'Keep second comma field', 's/^[^,]*,\\([^,]*\\).*/\\1/', 'recipe', 'CSV-ish edits', 'Keep the second simple comma-separated field.', ['csv-ish', 'second field', 'column'], 'replace-command', 'Simple comma-separated text, not quoted CSV.', 'supported', 'a,b,c', 'b', []),
+        patternEntry('remove-spaces-after-commas', 'Remove spaces after commas', 's/, */,/g', 'recipe', 'CSV-ish edits', 'Remove spaces after commas.', ['csv-ish', 'comma spaces', 'cleanup'], 'replace-command', 'Simple comma-separated text, not quoted CSV.', 'supported', 'a, b,  c', 'a,b,c', []),
+        patternEntry('add-spaces-after-commas', 'Add spaces after commas', 's/,/, /g', 'recipe', 'CSV-ish edits', 'Add a space after every comma.', ['csv-ish', 'comma spacing'], 'replace-command', 'Simple comma-separated text, not quoted CSV.', 'supported', 'a,b', 'a, b', []),
+        patternEntry('start-of-line', 'Start of line', '^', 'fragment', 'Regex fragments', 'Anchor for beginning of line.', ['anchor', 'beginning', 'line start'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('end-of-line', 'End of line', '$', 'fragment', 'Regex fragments', 'Anchor for end of line.', ['anchor', 'ending', 'line end'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('match-blank-line', 'Blank line regex', '^$', 'fragment', 'Regex fragments', 'Matches an empty line.', ['blank', 'empty', 'empty row'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('one-digit', 'One digit', '[0-9]', 'fragment', 'Regex fragments', 'Matches one digit.', ['digit', 'number'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('one-or-more-digits', 'One or more digits', '[0-9]\\+', 'fragment', 'Regex fragments', 'Matches a run of digits.', ['digits', 'numbers', 'numeric'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('letters', 'Letters', '[A-Za-z]\\+', 'fragment', 'Regex fragments', 'Matches a run of ASCII letters.', ['alpha', 'word', 'letters'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('wordish-token', 'Word-ish token', '[A-Za-z0-9_]\\+', 'fragment', 'Regex fragments', 'Matches letters, digits, and underscores.', ['identifier', 'token', 'variable'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('not-slash-run', 'Not slash run', '[^/]\\+', 'fragment', 'Regex fragments', 'Matches one or more non-slash characters.', ['not slash', 'path segment'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('not-comma-run', 'Not comma run', '[^,]\\+', 'fragment', 'Regex fragments', 'Matches one or more non-comma characters.', ['not comma', 'csv field'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('not-quote-run', 'Not quote run', '[^"]*', 'fragment', 'Regex fragments', 'Matches zero or more non-quote characters.', ['not quote', 'until quote'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('not-closing-bracket-run', 'Not closing bracket run', '[^]]*', 'fragment', 'Regex fragments', 'Matches zero or more chars until ].', ['not bracket', 'until bracket'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('literal-dot', 'Literal dot', '\\.', 'fragment', 'Regex fragments', 'Matches an actual period.', ['period', 'dot', 'literal'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('literal-plus', 'Literal plus', '\\+', 'fragment', 'Regex fragments', 'In basic sed regex, escaped plus repeats the previous item; literal plus handling varies by mode.', ['plus', 'literal plus', 'quantifier'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('literal-star', 'Literal star', '\\*', 'fragment', 'Regex fragments', 'Matches an actual asterisk when escaped.', ['star', 'asterisk', 'literal'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('literal-slash', 'Literal slash', '\\/', 'fragment', 'Regex fragments', 'Escaped slash for slash-delimited sed expressions.', ['slash', 'delimiter', 'escape'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('literal-left-bracket', 'Literal left bracket', '\\[', 'fragment', 'Regex fragments', 'Matches an actual [ character.', ['bracket', 'literal'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('literal-right-bracket', 'Literal right bracket', '\\]', 'fragment', 'Regex fragments', 'Matches an actual ] character.', ['bracket', 'literal'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('capture-group', 'Capture group', '\\(...\\)', 'fragment', 'Regex fragments', 'Captures text for reuse as \\1, \\2, etc.', ['capture', 'group', 'backreference'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('first-backreference', 'First backreference', '\\1', 'replacement', 'Captures and backreferences', 'Replacement-side reference to capture group 1.', ['replacement', 'capture', 'reuse', 'group 1'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('whole-match-replacement', 'Reuse whole match', '&', 'replacement', 'Captures and backreferences', 'Replacement-side token for the whole match.', ['ampersand', 'whole match', 'reuse'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('optional-item', 'Optional item', '\\{0,1\\}', 'fragment', 'Regex fragments', 'Basic-regex interval meaning previous item is optional in sed variants that support intervals.', ['optional', 'zero or one', 'quantifier'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('character-class', 'Character class', '[abc]', 'fragment', 'Regex fragments', 'Matches one character from a set.', ['class', 'bracket expression'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('negated-character-class', 'Negated character class', '[^abc]', 'fragment', 'Regex fragments', 'Matches one character not in the set.', ['negated', 'not class'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('delete-lines-containing-todo', 'Delete TODO lines', '/TODO/d', 'recipe', 'Shell-script maintenance', 'Delete lines containing TODO.', ['todo', 'remove todo', 'delete notes', 'maintenance'], 'replace-command', '', 'supported', 'TODO fix\nkeep', 'keep', []),
+        patternEntry('print-lines-containing-todo', 'Print TODO lines', '/TODO/p', 'recipe', 'Shell-script maintenance', 'Print lines containing TODO.', ['todo', 'show todo', 'find notes', 'maintenance'], 'replace-command', '', 'supported', 'TODO fix\nkeep', 'TODO fix', []),
+        patternEntry('delete-shell-comments', 'Delete shell comments', '/^[ \\t]*#/d', 'recipe', 'Shell-script maintenance', 'Delete shell-style full-line comments, allowing indentation.', ['shell', 'comments', 'delete comments', 'remove comments', 'hash'], 'replace-command', '', 'supported', '# note\ncmd', 'cmd', []),
+        patternEntry('strip-inline-shell-comment-ish', 'Strip inline shell comment-ish', 's/[ \\t]*#.*$//', 'recipe', 'Shell-script maintenance', 'Remove a simple trailing # comment.', ['shell', 'inline comment', 'strip comments'], 'replace-command', '', 'supported', 'cmd # note', 'cmd', []),
+        patternEntry('normalize-shebang-env', 'Normalize python shebang', 's|^#!/usr/bin/python.*|#!/usr/bin/env python3|', 'recipe', 'Shell-script maintenance', 'Replace a Python shebang with env python3.', ['shebang', 'python', 'script', 'env'], 'replace-command', '', 'supported', '#!/usr/bin/python', '#!/usr/bin/env python3', []),
+        patternEntry('remove-empty-markdown-link-lines', 'Delete empty markdown link-ish lines', '/^\\[\\]()/d', 'recipe', 'Markdown cleanup', 'Delete a simple empty Markdown link placeholder line.', ['markdown', 'empty link', 'cleanup links'], 'replace-command', '', 'supported', '[]()\ntext', 'text', []),
+        patternEntry('strip-html-tags-simple', 'Strip simple HTML tags', 's/<[^>]*>//g', 'recipe', 'Plain text cleanup', 'Remove simple HTML/XML-like tags from a line.', ['html', 'xml', 'tags', 'plain text'], 'replace-command', '', 'supported', '<b>hi</b>', 'hi', []),
+        patternEntry('remove-ansi-color-codes-reference', 'Remove ANSI color codes', 's/\\x1b\\[[0-9;]*m//g', 'reference', 'Log cleanup', 'Remove common terminal color escape codes.', ['ansi', 'color', 'terminal', 'escape codes'], 'replace-command', 'Reference-only: escape-byte notation varies by sed and shell.', 'reference'),
+        patternEntry('lowercase-reference', 'Lowercase text with GNU sed', 's/.*/\\L&/', 'reference', 'Text transformation', 'GNU sed replacement escape for lowercasing the whole line.', ['lowercase', 'gnu sed', 'case conversion'], 'replace-command', 'Reference-only: GNU sed extension, not portable or simulated.', 'reference'),
+        patternEntry('uppercase-reference', 'Uppercase text with GNU sed', 's/.*/\\U&/', 'reference', 'Text transformation', 'GNU sed replacement escape for uppercasing the whole line.', ['uppercase', 'gnu sed', 'case conversion'], 'replace-command', 'Reference-only: GNU sed extension, not portable or simulated.', 'reference'),
+        patternEntry('anything-until-comma', 'Anything until comma', '[^,]*', 'fragment', 'Regex fragments', 'Matches zero or more characters up to a comma.', ['until comma', 'csv', 'field'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('anything-until-slash', 'Anything until slash', '[^/]*', 'fragment', 'Regex fragments', 'Matches zero or more characters up to a slash.', ['until slash', 'path segment'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('anything-until-colon', 'Anything until colon', '[^:]*', 'fragment', 'Regex fragments', 'Matches zero or more characters up to a colon.', ['until colon', 'field'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('anything-until-space', 'Anything until space', '[^ ]*', 'fragment', 'Regex fragments', 'Matches zero or more non-space characters.', ['until space', 'token'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('space-run', 'Space run', '  *', 'fragment', 'Regex fragments', 'Matches one or more spaces using basic regex.', ['spaces', 'whitespace', 'run'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('tab-escape', 'Tab escape', '\\t', 'fragment', 'Regex fragments', 'A tab escape used by many sed variants and this trainer.', ['tab', 'escape', 'whitespace'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('carriage-return-escape', 'Carriage return escape', '\\r', 'fragment', 'Regex fragments', 'A carriage-return escape used for CRLF cleanup.', ['cr', 'carriage return', 'windows'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('line-number-one', 'Line 1 address', '1', 'fragment', 'Regex fragments', 'Selects line one.', ['first line', 'address', 'line number'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('last-line-address', 'Last line address', '$', 'fragment', 'Regex fragments', 'Selects the last line when used as an address.', ['last line', 'address', 'tail'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('range-start-to-end', 'Marker range address', '/START/,/END/', 'fragment', 'Regex fragments', 'Selects a block from START to END.', ['range', 'markers', 'between'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('substitution-skeleton', 'Substitution skeleton', 's/PATTERN/REPLACEMENT/g', 'fragment', 'Regex fragments', 'Template for replacing all matches.', ['template', 'replace', 'substitute', 's command'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('delete-command', 'Delete command', 'd', 'fragment', 'Regex fragments', 'Deletes selected lines.', ['delete', 'remove line', 'command'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('print-command', 'Print command', 'p', 'fragment', 'Regex fragments', 'Prints selected lines.', ['print', 'show', 'command'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('global-flag', 'Global flag', 'g', 'fragment', 'Regex fragments', 'Replacement flag for every match on a line.', ['global', 'all matches', 'flag'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('print-flag', 'Print flag', 'p', 'fragment', 'Regex fragments', 'Substitution flag that prints changed lines.', ['print changed', 'flag', 'quiet mode'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('escape-slash-in-pattern', 'Escaped slash in pattern', '\\/', 'fragment', 'Regex fragments', 'Matches a literal slash inside /.../ syntax.', ['slash', 'escape', 'literal'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('two-captures', 'Two capture groups', '\\(...\\)\\(...\\)', 'fragment', 'Regex fragments', 'Skeleton with two capture groups.', ['capture', 'two groups', 'backreference'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('second-backreference', 'Second backreference', '\\2', 'fragment', 'Regex fragments', 'Replacement-side reference to capture group 2.', ['replacement', 'capture', 'group 2'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('third-backreference', 'Third backreference', '\\3', 'fragment', 'Regex fragments', 'Replacement-side reference to capture group 3.', ['replacement', 'capture', 'group 3'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('whole-line-pattern', 'Whole line pattern', '^.*$', 'fragment', 'Regex fragments', 'Matches a whole line.', ['entire line', 'whole line', 'anchors'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('empty-replacement', 'Empty replacement', '', 'fragment', 'Regex fragments', 'An empty replacement deletes the matched text.', ['delete match', 'replacement', 'empty'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('word-boundary-ish-start', 'Word start-ish', '\\(^\\|[^A-Za-z0-9_]\\)', 'fragment', 'Regex fragments', 'Basic-regex-ish boundary before a word.', ['word boundary', 'start word'], 'insert-at-cursor', '', 'supported'),
+        patternEntry('escaped-parenthesis-literal', 'Literal parenthesis', '[()]', 'fragment', 'Regex fragments', 'Matches a literal parenthesis using a character class.', ['literal parenthesis', 'paren', 'bracket class'], 'insert-at-cursor', '', 'supported')
       ];
-
       const app = document.getElementById('app');
       const ioGrid = document.getElementById('ioGrid');
       const rowResizer = document.getElementById('rowResizer');
@@ -697,6 +777,8 @@
       const patternTrainer = document.getElementById('patternTrainer');
       const trainerClose = document.getElementById('trainerClose');
       const trainerSearch = document.getElementById('trainerSearch');
+      const trainerCategoryFilter = document.getElementById('trainerCategoryFilter');
+      const trainerTypeFilter = document.getElementById('trainerTypeFilter');
       const trainerSupportFilter = document.getElementById('trainerSupportFilter');
       const trainerResults = document.getElementById('trainerResults');
       const trainerCount = document.getElementById('trainerCount');
@@ -722,6 +804,8 @@
       trainerClose.addEventListener('click', closeTrainer);
       patternTrainer.addEventListener('click', event => { if (event.target === patternTrainer) closeTrainer(); });
       trainerSearch.addEventListener('input', renderTrainerResults);
+      trainerCategoryFilter.addEventListener('change', renderTrainerResults);
+      trainerTypeFilter.addEventListener('change', renderTrainerResults);
       trainerSupportFilter.addEventListener('change', renderTrainerResults);
       trainerResults.addEventListener('click', handleTrainerClick);
       document.addEventListener('keydown', event => {
@@ -743,12 +827,13 @@
       installRowResizer();
       installColumnResizer();
 
+      populateTrainerFilters();
       renderTrainerResults();
       renderBookmarksMenu();
       update();
 
 
-      function patternEntry(id, title, snippet, type, category, description, tags, insertMode, notes, supported) {
+      function patternEntry(id, title, snippet, type, category, description, tags, insertMode, notes, supported, exampleInput, exampleOutput, placeholders) {
         return {
           id,
           title,
@@ -759,8 +844,34 @@
           tags: tags || [],
           insertMode: insertMode || (type === 'command' ? 'replace-command' : 'insert-at-cursor'),
           notes: notes || '',
-          supported: normalizeSupportLevel(supported)
+          supported: normalizeSupportLevel(supported),
+          exampleInput: exampleInput || '',
+          exampleOutput: exampleOutput || '',
+          placeholders: placeholders || []
         };
+      }
+
+      function populateTrainerFilters() {
+        fillTrainerFilter(trainerCategoryFilter, 'All categories', uniqueSorted(PATTERN_LIBRARY.map(entry => entry.category)));
+        fillTrainerFilter(trainerTypeFilter, 'All types', uniqueSorted(PATTERN_LIBRARY.map(entry => entry.type)));
+      }
+
+      function fillTrainerFilter(select, label, values) {
+        select.innerHTML = '';
+        const all = document.createElement('option');
+        all.value = 'all';
+        all.textContent = label;
+        select.appendChild(all);
+        values.forEach(value => {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = value;
+          select.appendChild(option);
+        });
+      }
+
+      function uniqueSorted(values) {
+        return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
       }
 
       function normalizeSupportLevel(supported) {
@@ -797,12 +908,16 @@
       }
 
       function renderTrainerResults() {
-        const query = trainerSearch.value.trim().toLowerCase();
-        const filter = trainerSupportFilter.value;
+        const query = normalizeSearchText(trainerSearch.value.trim());
+        const supportFilter = trainerSupportFilter.value;
+        const categoryFilter = trainerCategoryFilter.value;
+        const typeFilter = trainerTypeFilter.value;
         const terms = tokenizeQuery(query);
         const matches = PATTERN_LIBRARY
           .map(entry => ({ entry, score: scorePatternEntry(entry, query, terms) }))
-          .filter(match => supportFilterAllows(match.entry, filter))
+          .filter(match => supportFilterAllows(match.entry, supportFilter))
+          .filter(match => categoryFilter === 'all' || match.entry.category === categoryFilter)
+          .filter(match => typeFilter === 'all' || match.entry.type === typeFilter)
           .filter(match => !terms.length || match.score > 0)
           .sort((a, b) => {
             if (b.score !== a.score) return b.score - a.score;
@@ -825,57 +940,53 @@
 
       function tokenizeQuery(query) {
         const stopWords = new Set(['i', 'want', 'to', 'the', 'a', 'an', 'with', 'that', 'what', 'how', 'do', 'can', 'please', 'my', 'each', 'every', 'from']);
-        return query.split(/[^a-z0-9_+.#/-]+/).filter(term => term && !stopWords.has(term));
+        return normalizeSearchText(query).split(/[^a-z0-9_+.#/-]+/).filter(term => term && !stopWords.has(term));
+      }
+
+      function normalizeSearchText(text) {
+        return text.toLowerCase().replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/\s+/g, ' ').trim();
       }
 
       function scorePatternEntry(entry, query, terms) {
-        if (!terms.length) return supportRank(entry.supported) * 5;
+        const pinned = pinnedPatternIds.includes(entry.id);
+        if (!terms.length) return (entry.supported === 'reference' ? -50 : entry.supported === 'partial' ? 10 : 40) + (pinned ? 100 : 0);
 
-        const title = entry.title.toLowerCase();
-        const snippet = entry.snippet.toLowerCase();
-        const description = entry.description.toLowerCase();
-        const category = entry.category.toLowerCase();
-        const type = entry.type.toLowerCase();
-        const notes = entry.notes.toLowerCase();
-        const tags = (entry.tags || []).map(tag => tag.toLowerCase());
+        const title = normalizeSearchText(entry.title);
+        const snippet = normalizeSearchText(entry.snippet);
+        const description = normalizeSearchText(entry.description);
+        const category = normalizeSearchText(entry.category);
+        const type = normalizeSearchText(entry.type);
+        const notes = normalizeSearchText(entry.notes);
+        const tags = (entry.tags || []).map(normalizeSearchText);
         const tagText = tags.join(' ');
-        const titleTagText = title + ' ' + tagText;
         const wholeText = [title, snippet, description, category, type, notes, tagText].join(' ');
-        let score = supportRank(entry.supported) * 25;
+        let score = entry.supported === 'reference' ? -50 : entry.supported === 'partial' ? 10 : 40;
+        if (pinned) score += 100;
         let matchedAnyTerm = false;
 
-        if (query && snippet === query) { score += 10000; matchedAnyTerm = true; }
-        if (query && snippet.includes(query)) { score += 3500; matchedAnyTerm = true; }
-        if (query && title === query) { score += 9000; matchedAnyTerm = true; }
-        if (query && title.includes(query)) { score += 4500; matchedAnyTerm = true; }
-        if (query && tags.some(tag => tag === query || tag.includes(query))) { score += 2600; matchedAnyTerm = true; }
+        if (query && snippet === query) { score += 1000; matchedAnyTerm = true; }
+        if (query && title === query) { score += 900; matchedAnyTerm = true; }
+        if (query && title.includes(query)) { score += 700; matchedAnyTerm = true; }
+        if (terms.length && terms.every(term => title.includes(term))) { score += 600; matchedAnyTerm = true; }
+        if (terms.length && terms.every(term => tagText.includes(term))) { score += 500; matchedAnyTerm = true; }
+        if (query && snippet.includes(query)) { score += 450; matchedAnyTerm = true; }
+        if (query && (category === query || category.includes(query))) { score += 250; matchedAnyTerm = true; }
+        if (query && description.includes(query)) { score += 250; matchedAnyTerm = true; }
 
-        let titleTagHits = 0;
-        let allTermsFound = true;
         terms.forEach(term => {
-          let termScore = 0;
-          const exactTag = tags.some(tag => tag === term);
-          const tagHit = tags.some(tag => tag.includes(term));
-          if (title.includes(term)) { termScore += 700; titleTagHits += 1; }
-          if (exactTag) { termScore += 850; titleTagHits += 1; }
-          else if (tagHit) { termScore += 550; titleTagHits += 1; }
-          if (snippet.includes(term)) termScore += 500;
-          if (description.includes(term)) termScore += 220;
-          if (category.includes(term) || type.includes(term)) termScore += 90;
-          if (notes.includes(term)) termScore += 70;
-          if (!wholeText.includes(term)) allTermsFound = false;
-          if (termScore > 0) matchedAnyTerm = true;
-          score += termScore;
+          if (title.includes(term)) { score += 200; matchedAnyTerm = true; }
+          if (tagText.includes(term)) { score += 180; matchedAnyTerm = true; }
+          if (description.includes(term)) { score += 100; matchedAnyTerm = true; }
+          if (notes.includes(term)) { score += 60; matchedAnyTerm = true; }
+          if (snippet.includes(term) || category.includes(term) || type.includes(term)) { score += 80; matchedAnyTerm = true; }
         });
-
-        if (terms.length && terms.every(term => titleTagText.includes(term))) score += 1800;
-        if (terms.length > 1 && titleTagHits >= terms.length) score += 900;
-        if (allTermsFound) score += 250;
+        if (terms.length && terms.every(term => wholeText.includes(term))) score += 80;
         return matchedAnyTerm ? score : 0;
       }
 
       function supportFilterAllows(entry, filter) {
         if (filter === 'all') return true;
+        if (filter === 'supported-partial') return entry.supported === 'supported' || entry.supported === 'partial';
         return entry.supported === filter;
       }
 
@@ -906,7 +1017,7 @@
 
         const tags = document.createElement('div');
         tags.className = 'trainer-tags';
-        [entry.category, entry.type].concat((entry.tags || []).slice(0, 4)).forEach(tag => {
+        [entry.category, entry.type, supportLabel(entry.supported)].concat((entry.placeholders || []).map(item => '<' + item + '>')).concat((entry.tags || []).slice(0, 4)).forEach(tag => {
           const pill = document.createElement('span');
           pill.className = 'trainer-pill';
           pill.textContent = tag;
@@ -924,14 +1035,20 @@
         badge.textContent = supportLabel(entry.supported);
         actions.append(button, badge);
 
+        const extras = [];
+        if (entry.exampleInput || entry.exampleOutput) {
+          const example = document.createElement('p');
+          example.className = 'trainer-example';
+          example.textContent = 'ex: ' + (entry.exampleInput || '∅').replace(/\n/g, ' ↵ ') + '  →  ' + (entry.exampleOutput || '∅').replace(/\n/g, ' ↵ ');
+          extras.push(example);
+        }
         if (entry.notes) {
           const note = document.createElement('p');
           note.className = 'trainer-description';
           note.textContent = entry.notes;
-          card.append(head, code, description, note, tags, actions);
-        } else {
-          card.append(head, code, description, tags, actions);
+          extras.push(note);
         }
+        card.append(head, code, description, ...extras, tags, actions);
         return card;
       }
 
@@ -1258,6 +1375,9 @@
           if (found.error) return { error: 'Unclosed regex address.' };
           return { address: { type: 'regex', pattern: found.content, text: spell.slice(pos, found.pos) }, pos: found.pos };
         }
+        if (spell[pos] === '$') {
+          return { address: { type: 'last', text: '$' }, pos: pos + 1 };
+        }
         const numberMatch = spell.slice(pos).match(/^\d+/);
         if (numberMatch) {
           return { address: { type: 'line', line: Number(numberMatch[0]), text: numberMatch[0] }, pos: pos + numberMatch[0].length };
@@ -1322,6 +1442,8 @@
       function addSingleAddressDetail(chunks, address, title) {
         if (address.type === 'line') {
           addChunk(chunks, address.text, title, 'Selects line ' + address.line + ' of the input. Sed line numbers start at 1.');
+        } else if (address.type === 'last') {
+          addChunk(chunks, address.text, title, 'Selects the last line of the input.');
         } else if (address.type === 'regex') {
           addChunk(chunks, address.text, title, 'Selects lines whose text matches this regular expression address.');
         }
@@ -1377,7 +1499,7 @@
           const rangeState = { active: false };
           lines.forEach((line, index) => {
             const lineNo = index + 1;
-            const selected = addressMatches(parsed.address, line, lineNo, rangeState);
+            const selected = addressMatches(parsed.address, line, lineNo, rangeState, lines.length);
             const command = parsed.command;
 
             if (command.type === 'p') {
@@ -1413,21 +1535,23 @@
         }
       }
 
-      function addressMatches(address, line, lineNo, rangeState) {
+      function addressMatches(address, line, lineNo, rangeState, totalLines) {
         if (!address) return true;
         if (address.type === 'line') return lineNo === address.line;
+        if (address.type === 'last') return lineNo === totalLines;
         if (address.type === 'regex') return new RegExp(basicSedPatternToJs(address.pattern)).test(line);
         if (address.type === 'range') {
-          if (!rangeState.active && singleAddressMatches(address.start, line, lineNo)) rangeState.active = true;
+          if (!rangeState.active && singleAddressMatches(address.start, line, lineNo, totalLines)) rangeState.active = true;
           const selected = rangeState.active;
-          if (rangeState.active && singleAddressMatches(address.end, line, lineNo)) rangeState.active = false;
+          if (rangeState.active && singleAddressMatches(address.end, line, lineNo, totalLines)) rangeState.active = false;
           return selected;
         }
         return false;
       }
 
-      function singleAddressMatches(address, line, lineNo) {
+      function singleAddressMatches(address, line, lineNo, totalLines) {
         if (address.type === 'line') return lineNo === address.line;
+        if (address.type === 'last') return lineNo === totalLines;
         if (address.type === 'regex') return new RegExp(basicSedPatternToJs(address.pattern)).test(line);
         return false;
       }
