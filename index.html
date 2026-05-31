@@ -193,7 +193,7 @@
       border-color: var(--focus);
     }
 
-    #sedSpell { padding: 8px 10px; }
+    #expressionInput { padding: 8px 10px; }
 
     .anatomy-wrap {
       min-height: 0;
@@ -529,9 +529,9 @@
 </head>
 <body>
   <main class="app" id="app">
-    <div class="toolbar" aria-label="Sed command">
-      <label class="prompt" for="sedSpell">sed</label>
-      <input id="sedSpell" spellcheck="false" autocomplete="off" aria-describedby="anatomyStrip">
+    <div class="toolbar" aria-label="Command expression">
+      <label class="prompt" for="expressionInput" id="dialectPrompt">sed</label>
+      <input id="expressionInput" spellcheck="false" autocomplete="off" aria-describedby="anatomyStrip">
       <button type="button" id="bookmarksToggle" aria-haspopup="menu" aria-expanded="false" title="Pinned patterns">🔖</button>
       <button type="button" id="patternsToggle" aria-haspopup="dialog" aria-expanded="false">patterns</button>
       <button type="button" id="themeToggle" aria-label="Theme mode">auto</button>
@@ -585,9 +585,10 @@
           <select class="trainer-filter" id="trainerCategoryFilter" aria-label="Filter by category"></select>
           <select class="trainer-filter" id="trainerTypeFilter" aria-label="Filter by type"></select>
           <select class="trainer-filter" id="trainerSupportFilter" aria-label="Filter by support level">
-            <option value="supported-partial" selected>Supported + partial</option>
-            <option value="supported">Supported only</option>
+            <option value="live-partial" selected>Live + partial</option>
+            <option value="live">Live only</option>
             <option value="partial">Partial only</option>
+            <option value="external">External only</option>
             <option value="reference">Reference-only</option>
             <option value="all">All support levels</option>
           </select>
@@ -605,14 +606,12 @@
     (function () {
       'use strict';
 
-      const DEFAULT_TEXT = 'alpha 123\nbeta 456\nSTART\nitem 789\nitem 101112\nEND\ngamma 999\nfoo foo foo';
-      const DEFAULT_SPELL = 's/\\([0-9]\\+\\)/NUM/g';
-      const STORAGE_SPELL = 'sed-regex-gui-spell';
-      const STORAGE_TEXT = 'sed-regex-gui-victim-text';
-      const STORAGE_THEME = 'sed-regex-gui-theme';
-      const STORAGE_ROW_SPLIT = 'sed-regex-gui-row-split';
-      const STORAGE_COLUMN_SPLIT = 'sed-regex-gui-column-split';
-      const STORAGE_PINNED_PATTERNS = 'sed-regex-gui-pinned-patterns';
+      const DEFAULT_SED_TEXT = 'alpha 123\nbeta 456\nSTART\nitem 789\nitem 101112\nEND\ngamma 999\nfoo foo foo';
+      const DEFAULT_SED_EXPRESSION = 's/\\([0-9]\\+\\)/NUM/g';
+      const STORAGE_PREFIX = 'patternWorkbench';
+      const STORAGE_THEME = STORAGE_PREFIX + '.settings.theme';
+      const STORAGE_ROW_SPLIT = STORAGE_PREFIX + '.settings.rowSplit';
+      const STORAGE_COLUMN_SPLIT = STORAGE_PREFIX + '.settings.columnSplit';
       const COLOR_CLASSES = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8'];
       const REGEX_MEANING_RULES = [
         { pattern: '^$', meaning: 'empty lines', sentence: 'lines that are completely empty' },
@@ -760,7 +759,7 @@
         }
       ];
 
-      const PATTERN_LIBRARY = [
+      const SED_TRAINER_ENTRIES = [
         patternEntry('replace-literal-text', 'Replace literal text', 's/OLD/NEW/g', 'recipe', 'Substitution basics', 'Replace every OLD with NEW on each line.', ['replace', 'find replace', 'substitute', 'change text', 'old new', 'literal', 'search replace'], 'replace-command', '', 'supported', 'OLD alpha\nOLD beta', 'NEW alpha\nNEW beta', ['OLD', 'NEW']),
         patternEntry('replace-first-foo', 'Replace first foo with bar', 's/foo/bar/', 'command', 'Substitution basics', 'Replace the first foo on each selected line.', ['replace', 'substitute', 'first match', 'foo bar', 'change foo to bar'], 'replace-command', '', 'supported', 'foo foo', 'bar foo', []),
         patternEntry('replace-all-foo', 'Replace all foo with bar', 's/foo/bar/g', 'command', 'Substitution basics', 'Replace every foo on each selected line.', ['replace all', 'global', 'substitute', 'foo bar', 'find and replace'], 'replace-command', '', 'supported', 'foo foo', 'bar bar', []),
@@ -912,6 +911,30 @@
         patternEntry('word-boundary-ish-start', 'Word start-ish', '\\(^\\|[^A-Za-z0-9_]\\)', 'fragment', 'Regex fragments', 'Basic-regex-ish boundary before a word.', ['word boundary', 'start word'], 'insert-at-cursor', '', 'supported'),
         patternEntry('escaped-parenthesis-literal', 'Literal parenthesis', '[()]', 'fragment', 'Regex fragments', 'Matches a literal parenthesis using a character class.', ['literal parenthesis', 'paren', 'bracket class'], 'insert-at-cursor', '', 'supported')
       ];
+      const DIALECTS = {
+        sed: {
+          id: 'sed',
+          label: 'sed',
+          inputLabel: 'sed',
+          defaultExpression: DEFAULT_SED_EXPRESSION,
+          defaultVictimText: DEFAULT_SED_TEXT,
+          capabilities: {
+            liveExecution: true,
+            replacement: true,
+            lineAddresses: true,
+            trainer: true,
+            matchPreview: true
+          },
+          parse: parseSedExpression,
+          execute: executeSedExpression,
+          summarize: summarizeSedExpression,
+          explain: explainSedExpression,
+          getTrainerEntries: getSedTrainerEntries
+        }
+      };
+      let activeDialectId = 'sed';
+      let activeDialect = DIALECTS[activeDialectId];
+
       const app = document.getElementById('app');
       const ioGrid = document.getElementById('ioGrid');
       const rowResizer = document.getElementById('rowResizer');
@@ -928,7 +951,8 @@
       const trainerSupportFilter = document.getElementById('trainerSupportFilter');
       const trainerResults = document.getElementById('trainerResults');
       const trainerCount = document.getElementById('trainerCount');
-      const sedSpell = document.getElementById('sedSpell');
+      const dialectPrompt = document.getElementById('dialectPrompt');
+      const expressionInput = document.getElementById('expressionInput');
       const victimText = document.getElementById('victimText');
       const outputText = document.getElementById('outputText');
       const anatomyStrip = document.getElementById('anatomyStrip');
@@ -936,8 +960,10 @@
       const commandSummary = document.getElementById('commandSummary');
       const messages = document.getElementById('messages');
 
-      sedSpell.value = localStorage.getItem(STORAGE_SPELL) || DEFAULT_SPELL;
-      victimText.value = localStorage.getItem(STORAGE_TEXT) || DEFAULT_TEXT;
+      dialectPrompt.textContent = activeDialect.inputLabel || activeDialect.label;
+      expressionInput.value = localStorage.getItem(dialectStorageKey('expression')) || activeDialect.defaultExpression;
+      victimText.value = localStorage.getItem(dialectStorageKey('inputText')) || activeDialect.defaultVictimText;
+      let commandHistory = loadCommandHistory();
       let pinnedPatternIds = loadPinnedPatternIds();
 
       applySavedTheme();
@@ -964,7 +990,7 @@
         if (bookmarksMenu.contains(event.target) || bookmarksToggle.contains(event.target)) return;
         closeBookmarksMenu();
       });
-      sedSpell.addEventListener('input', update);
+      expressionInput.addEventListener('input', update);
       victimText.addEventListener('input', update);
       anatomyStrip.addEventListener('mouseover', activateFromEvent);
       anatomyStrip.addEventListener('mouseout', clearActiveFromEvent);
@@ -979,6 +1005,60 @@
       update();
 
 
+      function dialectStorageKey(kind) {
+        return STORAGE_PREFIX + '.' + kind + '.' + activeDialectId;
+      }
+
+      function getTrainerEntries() {
+        if (!activeDialect.capabilities.trainer) return [];
+        return activeDialect.getTrainerEntries().filter(entry => entry.dialect === activeDialectId || (entry.dialects || []).includes(activeDialectId));
+      }
+
+      function getSedTrainerEntries() {
+        return SED_TRAINER_ENTRIES;
+      }
+
+      function parseSedExpression(expression) {
+        const parsed = parseSedSpell(expression);
+        const summary = summarizeSedExpression(parsed);
+        const warnings = parsed.messages || [];
+        const errors = parsed.error ? [parsed.error] : [];
+        return Object.assign(parsed, {
+          ok: !parsed.error,
+          dialect: 'sed',
+          expression,
+          summary,
+          chunks: parsed.chunks || [],
+          cards: parsed.chunks || [],
+          warnings,
+          errors
+        });
+      }
+
+      function executeSedExpression(anatomy, inputText) {
+        if (!anatomy.ok) {
+          return { ok: false, outputText: '', matchRanges: [], warnings: [], errors: anatomy.errors || [] };
+        }
+        const result = executeSed(anatomy, inputText);
+        const warnings = result.messages || [];
+        return {
+          ok: !warnings.length,
+          outputText: result.output || '',
+          matchRanges: [],
+          warnings,
+          errors: []
+        };
+      }
+
+      function summarizeSedExpression(anatomy) {
+        if (!anatomy || anatomy.error || !anatomy.command) return '';
+        return summarizeCommand(anatomy);
+      }
+
+      function explainSedExpression(expression) {
+        return parseSedExpression(expression);
+      }
+
       function patternEntry(id, title, snippet, type, category, description, tags, insertMode, notes, supported, exampleInput, exampleOutput, placeholders) {
         return {
           id,
@@ -990,7 +1070,9 @@
           tags: tags || [],
           insertMode: insertMode || (type === 'command' ? 'replace-command' : 'insert-at-cursor'),
           notes: notes || '',
-          supported: normalizeSupportLevel(supported),
+          dialect: 'sed',
+          support: normalizeSupportLevel(supported),
+          requires: [],
           exampleInput: exampleInput || '',
           exampleOutput: exampleOutput || '',
           placeholders: placeholders || []
@@ -998,8 +1080,8 @@
       }
 
       function populateTrainerFilters() {
-        fillTrainerFilter(trainerCategoryFilter, 'All categories', uniqueSorted(PATTERN_LIBRARY.map(entry => entry.category)));
-        fillTrainerFilter(trainerTypeFilter, 'All types', uniqueSorted(PATTERN_LIBRARY.map(entry => entry.type)));
+        fillTrainerFilter(trainerCategoryFilter, 'All categories', uniqueSorted(getTrainerEntries().map(entry => entry.category)));
+        fillTrainerFilter(trainerTypeFilter, 'All types', uniqueSorted(getTrainerEntries().map(entry => entry.type)));
       }
 
       function fillTrainerFilter(select, label, values) {
@@ -1023,18 +1105,21 @@
       function normalizeSupportLevel(supported) {
         if (supported === false || supported === 'reference-only' || supported === 'reference') return 'reference';
         if (supported === 'partial') return 'partial';
-        return 'supported';
+        if (supported === 'external') return 'external';
+        return 'live';
       }
 
       function supportLabel(level) {
         if (level === 'reference') return 'reference-only';
+        if (level === 'external') return 'external';
         if (level === 'partial') return 'partial support';
-        return 'supported';
+        return 'live';
       }
 
       function supportRank(level) {
-        if (level === 'supported') return 3;
-        if (level === 'partial') return 2;
+        if (level === 'live') return 4;
+        if (level === 'partial') return 3;
+        if (level === 'external') return 2;
         return 1;
       }
 
@@ -1059,7 +1144,7 @@
         const categoryFilter = trainerCategoryFilter.value;
         const typeFilter = trainerTypeFilter.value;
         const terms = tokenizeQuery(query);
-        const matches = PATTERN_LIBRARY
+        const matches = getTrainerEntries()
           .map(entry => ({ entry, score: scorePatternEntry(entry, query, terms) }))
           .filter(match => supportFilterAllows(match.entry, supportFilter))
           .filter(match => categoryFilter === 'all' || match.entry.category === categoryFilter)
@@ -1067,11 +1152,11 @@
           .filter(match => !terms.length || match.score > 0)
           .sort((a, b) => {
             if (b.score !== a.score) return b.score - a.score;
-            if (supportRank(b.entry.supported) !== supportRank(a.entry.supported)) return supportRank(b.entry.supported) - supportRank(a.entry.supported);
+            if (supportRank(b.entry.support) !== supportRank(a.entry.support)) return supportRank(b.entry.support) - supportRank(a.entry.support);
             return a.entry.title.localeCompare(b.entry.title);
           });
 
-        trainerCount.textContent = matches.length + ' of ' + PATTERN_LIBRARY.length + ' patterns';
+        trainerCount.textContent = matches.length + ' of ' + getTrainerEntries().length + ' patterns';
         trainerResults.innerHTML = '';
         if (!matches.length) {
           const note = document.createElement('div');
@@ -1095,7 +1180,7 @@
 
       function scorePatternEntry(entry, query, terms) {
         const pinned = pinnedPatternIds.includes(entry.id);
-        if (!terms.length) return (entry.supported === 'reference' ? -50 : entry.supported === 'partial' ? 10 : 40) + (pinned ? 100 : 0);
+        if (!terms.length) return (entry.support === 'reference' ? -50 : entry.support === 'partial' ? 10 : entry.support === 'external' ? -10 : 40) + (pinned ? 100 : 0);
 
         const title = normalizeSearchText(entry.title);
         const snippet = normalizeSearchText(entry.snippet);
@@ -1106,7 +1191,7 @@
         const tags = (entry.tags || []).map(normalizeSearchText);
         const tagText = tags.join(' ');
         const wholeText = [title, snippet, description, category, type, notes, tagText].join(' ');
-        let score = entry.supported === 'reference' ? -50 : entry.supported === 'partial' ? 10 : 40;
+        let score = entry.support === 'reference' ? -50 : entry.support === 'partial' ? 10 : entry.support === 'external' ? -10 : 40;
         if (pinned) score += 100;
         let matchedAnyTerm = false;
 
@@ -1132,8 +1217,8 @@
 
       function supportFilterAllows(entry, filter) {
         if (filter === 'all') return true;
-        if (filter === 'supported-partial') return entry.supported === 'supported' || entry.supported === 'partial';
-        return entry.supported === filter;
+        if (filter === 'live-partial') return entry.support === 'live' || entry.support === 'partial';
+        return entry.support === filter;
       }
 
       function renderTrainerCard(entry) {
@@ -1164,7 +1249,7 @@
 
         const tags = document.createElement('div');
         tags.className = 'trainer-tags';
-        [entry.category, entry.type, supportLabel(entry.supported)].concat((entry.placeholders || []).map(item => '<' + item + '>')).concat((entry.tags || []).slice(0, 4)).forEach(tag => {
+        [entry.category, entry.type, supportLabel(entry.support)].concat((entry.placeholders || []).map(item => '<' + item + '>')).concat((entry.tags || []).slice(0, 4)).forEach(tag => {
           const pill = document.createElement('span');
           pill.className = 'trainer-pill';
           pill.textContent = tag;
@@ -1179,7 +1264,7 @@
         button.textContent = entry.insertMode === 'replace-command' ? 'Use command' : 'Insert fragment';
         const badge = document.createElement('span');
         badge.className = 'support-badge';
-        badge.textContent = supportLabel(entry.supported);
+        badge.textContent = supportLabel(entry.support);
         actions.append(button, badge);
 
         const extras = [];
@@ -1201,10 +1286,10 @@
 
 
       function trainerSemanticHint(snippet) {
-        const parsed = parseSedSpell(snippet);
-        if (parsed.error || !parsed.command) return '';
-        if (parsed.command.type === 's') return 'the pattern is ' + explainRegex(parsed.command.pattern).meaning;
-        if (parsed.address && parsed.address.type === 'regex') return 'the address selects ' + explainRegex(parsed.address.pattern).meaning;
+        const explained = activeDialect.explain(snippet);
+        if (!explained.ok || !explained.command) return '';
+        if (explained.command.type === 's') return 'the pattern is ' + describePattern(explained.command.pattern);
+        if (explained.address && explained.address.type === 'regex') return 'the address selects ' + summarizeAddress(explained.address);
         return '';
       }
 
@@ -1216,7 +1301,7 @@
         }
         const target = event.target.closest('[data-pattern-id]');
         if (!target) return;
-        const entry = PATTERN_LIBRARY.find(item => item.id === target.dataset.patternId);
+        const entry = getTrainerEntries().find(item => item.id === target.dataset.patternId);
         if (!entry) return;
         insertPattern(entry);
       }
@@ -1227,15 +1312,31 @@
         } else {
           pinnedPatternIds = [id].concat(pinnedPatternIds).slice(0, 16);
         }
-        localStorage.setItem(STORAGE_PINNED_PATTERNS, JSON.stringify(pinnedPatternIds));
+        localStorage.setItem(dialectStorageKey('bookmarks'), JSON.stringify(pinnedPatternIds));
         renderTrainerResults();
         renderBookmarksMenu();
       }
 
+      function rememberExpression(expression) {
+        const trimmed = expression.trim();
+        if (!trimmed) return;
+        commandHistory = [trimmed].concat(commandHistory.filter(item => item !== trimmed)).slice(0, 50);
+        localStorage.setItem(dialectStorageKey('history'), JSON.stringify(commandHistory));
+      }
+
+      function loadCommandHistory() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(dialectStorageKey('history')) || '[]');
+          return Array.isArray(parsed) ? parsed.filter(item => typeof item === 'string') : [];
+        } catch (error) {
+          return [];
+        }
+      }
+
       function loadPinnedPatternIds() {
         try {
-          const parsed = JSON.parse(localStorage.getItem(STORAGE_PINNED_PATTERNS) || '[]');
-          return Array.isArray(parsed) ? parsed.filter(id => PATTERN_LIBRARY.some(entry => entry.id === id)) : [];
+          const parsed = JSON.parse(localStorage.getItem(dialectStorageKey('bookmarks')) || localStorage.getItem('sed-regex-gui-pinned-patterns') || '[]');
+          return Array.isArray(parsed) ? parsed.filter(id => getTrainerEntries().some(entry => entry.id === id)) : [];
         } catch (error) {
           return [];
         }
@@ -1259,7 +1360,7 @@
 
       function renderBookmarksMenu() {
         bookmarksMenu.innerHTML = '';
-        const pinnedEntries = pinnedPatternIds.map(id => PATTERN_LIBRARY.find(entry => entry.id === id)).filter(Boolean);
+        const pinnedEntries = pinnedPatternIds.map(id => getTrainerEntries().find(entry => entry.id === id)).filter(Boolean);
         if (!pinnedEntries.length) {
           const note = document.createElement('div');
           note.className = 'empty-note';
@@ -1301,24 +1402,24 @@
         }
         const target = event.target.closest('[data-pattern-id]');
         if (!target) return;
-        const entry = PATTERN_LIBRARY.find(item => item.id === target.dataset.patternId);
+        const entry = getTrainerEntries().find(item => item.id === target.dataset.patternId);
         if (!entry) return;
         closeBookmarksMenu();
         insertPattern(entry);
       }
 
       function insertPattern(entry) {
-        const start = sedSpell.selectionStart || 0;
-        const end = sedSpell.selectionEnd || start;
+        const start = expressionInput.selectionStart || 0;
+        const end = expressionInput.selectionEnd || start;
         if (entry.insertMode === 'replace-command') {
-          sedSpell.value = entry.snippet;
+          expressionInput.value = entry.snippet;
         } else {
-          sedSpell.value = sedSpell.value.slice(0, start) + entry.snippet + sedSpell.value.slice(end);
+          expressionInput.value = expressionInput.value.slice(0, start) + entry.snippet + expressionInput.value.slice(end);
           const caret = start + entry.snippet.length;
-          sedSpell.setSelectionRange(caret, caret);
+          expressionInput.setSelectionRange(caret, caret);
         }
         closeTrainer();
-        sedSpell.focus();
+        expressionInput.focus();
         update();
       }
 
@@ -1430,18 +1531,19 @@
       }
 
       function update() {
-        localStorage.setItem(STORAGE_SPELL, sedSpell.value);
-        localStorage.setItem(STORAGE_TEXT, victimText.value);
+        localStorage.setItem(dialectStorageKey('expression'), expressionInput.value);
+        localStorage.setItem(dialectStorageKey('inputText'), victimText.value);
+        rememberExpression(expressionInput.value);
 
-        const parsed = parseSedSpell(sedSpell.value);
-        const result = parsed.error ? { output: '', messages: [parsed.error] } : executeSed(parsed, victimText.value);
-        const allMessages = parsed.messages.concat(result.messages || []);
+        const anatomy = activeDialect.parse(expressionInput.value);
+        const result = anatomy.ok ? activeDialect.execute(anatomy, victimText.value) : { ok: false, outputText: '', matchRanges: [], warnings: [], errors: anatomy.errors };
+        const allMessages = (anatomy.warnings || []).concat(anatomy.errors || [], result.warnings || [], result.errors || []);
 
-        outputText.textContent = parsed.error ? parsed.error : result.output;
+        outputText.textContent = anatomy.ok ? result.outputText : (anatomy.errors || []).join('\n');
         renderMessages(allMessages);
-        renderSummary(parsed);
-        renderAnatomy(parsed.chunks);
-        renderCards(parsed.chunks);
+        renderSummary(anatomy);
+        renderAnatomy(anatomy.chunks || []);
+        renderCards(anatomy.cards || anatomy.chunks || []);
       }
 
       function parseSedSpell(rawSpell) {
@@ -1944,7 +2046,7 @@
       function buildInstructionDetails(text, title, explanation) {
         const common = {
           what: explanation,
-          here: 'This part contributes to the command currently in the sed input.',
+          here: 'This part contributes to the expression currently in the command input.',
           example: 'Try it on the sample text and watch the output update live.',
           mistake: ''
         };
@@ -1992,10 +2094,9 @@
         return 'Unsupported command: ' + commandChar + '\n\nSupported commands are p, d, and s/pattern/replacement/flags.\nRecognized address: ' + describeRecognizedAddress(address) + '\nRecognized command: ' + commandChar;
       }
 
-      function renderSummary(parsed) {
+      function renderSummary(anatomy) {
         commandSummary.innerHTML = '';
-        if (parsed.error || !parsed.command) return;
-        const text = summarizeCommand(parsed);
+        const text = anatomy.summary || (activeDialect.summarize ? activeDialect.summarize(anatomy) : '');
         if (!text) return;
         const div = document.createElement('div');
         div.className = 'summary';
@@ -2099,7 +2200,7 @@
         if (!chunks.length) {
           const note = document.createElement('div');
           note.className = 'empty-note';
-          note.textContent = 'The explanation cards appear here as soon as V1 recognizes part of the sed command.';
+          note.textContent = 'The explanation cards appear here as soon as this dialect recognizes part of the expression.';
           cards.appendChild(note);
           return;
         }
@@ -2116,19 +2217,25 @@
           title.textContent = chunk.title;
 
           const explanation = document.createElement('p');
-          explanation.textContent = chunk.explanation;
+          explanation.textContent = chunk.short || chunk.explanation || '';
 
           const details = document.createElement('details');
           const summary = document.createElement('summary');
           summary.textContent = 'More detail';
           const dl = document.createElement('dl');
-          appendDetail(dl, 'What it is', chunk.details.what);
-          appendDetail(dl, 'What it does here', chunk.details.here);
-          appendDetail(dl, 'Tiny example', chunk.details.example);
-          if (chunk.details.mistake) appendDetail(dl, 'Common mistake', chunk.details.mistake);
-          details.append(summary, dl);
+          const detailMap = chunk.details || {};
+          if (Array.isArray(detailMap)) {
+            detailMap.forEach(item => appendDetail(dl, item.label || 'Detail', item.text || String(item)));
+          } else {
+            if (detailMap.what) appendDetail(dl, 'What it is', detailMap.what);
+            if (detailMap.here) appendDetail(dl, 'What it does here', detailMap.here);
+            if (detailMap.example) appendDetail(dl, 'Tiny example', detailMap.example);
+            if (detailMap.mistake) appendDetail(dl, 'Common mistake', detailMap.mistake);
+          }
+          if (dl.children.length) details.append(summary, dl);
 
-          card.append(code, title, explanation, details);
+          card.append(code, title, explanation);
+          if (dl.children.length) card.appendChild(details);
           cards.appendChild(card);
         });
       }
