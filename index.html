@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sed Regex GUI</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #ece8df;
+      --panel: #fbfaf6;
+      --panel-2: #f4f0e7;
+      --ink: #23221f;
+      --muted: #666157;
+      --border: #c8beb0;
+      --shadow: rgba(32, 28, 22, 0.12);
+      --danger: #8f2d2d;
+      --danger-bg: #fff0f0;
+      --focus: #1f5d7a;
+      --c1: #9a3412;
+      --c1-bg: #fff3eb;
+      --c2: #1d4f91;
+      --c2-bg: #eef5ff;
+      --c3: #17634a;
+      --c3-bg: #ecf8f2;
+      --c4: #7c2d8b;
+      --c4-bg: #fbf0ff;
+      --c5: #9d6700;
+      --c5-bg: #fff8df;
+      --c6: #8b1e3f;
+      --c6-bg: #fff0f5;
+      --c7: #365314;
+      --c7-bg: #f3f9e8;
+      --c8: #0f766e;
+      --c8-bg: #e9fbf8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+
+    .app {
+      width: min(1180px, calc(100vw - 28px));
+      margin: 18px auto 26px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: end;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.45rem, 2.4vw, 2.15rem);
+      letter-spacing: -0.03em;
+    }
+
+    .tagline {
+      margin: 3px 0 0;
+      color: var(--muted);
+      max-width: 760px;
+    }
+
+    .status-pill {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--muted);
+      padding: 6px 10px;
+      font: 0.82rem/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: nowrap;
+    }
+
+    .workbench {
+      display: grid;
+      grid-template-rows: auto minmax(310px, 40vh) minmax(270px, auto);
+      gap: 12px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 10px var(--shadow);
+    }
+
+    .spell-panel { padding: 14px; }
+
+    label, .pane-title, .section-title {
+      display: block;
+      font-weight: 700;
+      color: #332f28;
+      margin-bottom: 7px;
+    }
+
+    .spell-row {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .prompt {
+      font: 700 1rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: var(--muted);
+    }
+
+    input, textarea, .output {
+      width: 100%;
+      border: 1px solid #b8ad9e;
+      background: #fffefb;
+      color: var(--ink);
+      font: 1rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      border-radius: 0;
+    }
+
+    input:focus, textarea:focus {
+      outline: 2px solid rgba(31, 93, 122, 0.3);
+      border-color: var(--focus);
+    }
+
+    #sedSpell { padding: 10px 11px; }
+
+    .anatomy-wrap {
+      margin-top: 12px;
+      padding: 10px;
+      border: 1px dashed #b9ad9d;
+      background: var(--panel-2);
+    }
+
+    .anatomy-label {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 0.86rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .anatomy-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      min-height: 36px;
+      align-items: center;
+    }
+
+    .chunk {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 4px 8px;
+      border: 2px solid currentColor;
+      background: var(--chunk-bg);
+      color: var(--chunk-color);
+      font: 700 0.95rem/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      cursor: default;
+      box-shadow: inset 0 -2px 0 rgba(0,0,0,0.06);
+    }
+
+    .chunk.is-active,
+    .card.is-active {
+      outline: 3px solid rgba(20, 20, 20, 0.23);
+      outline-offset: 2px;
+      filter: saturate(1.2);
+    }
+
+    .io-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .io-pane {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      padding: 12px;
+    }
+
+    textarea, .output {
+      flex: 1;
+      min-height: 245px;
+      padding: 12px;
+      resize: none;
+      white-space: pre-wrap;
+      overflow: auto;
+    }
+
+    .output { background: #fffefb; }
+
+    .splainer {
+      padding: 14px;
+    }
+
+    .splainer-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: baseline;
+      margin-bottom: 10px;
+    }
+
+    .splainer-head .hint {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 10px;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-left: 8px solid var(--chunk-color);
+      background: linear-gradient(90deg, var(--chunk-bg), #fffefb 34%);
+      padding: 11px 12px;
+      min-height: 118px;
+    }
+
+    .card-code {
+      display: inline-block;
+      color: var(--chunk-color);
+      background: #fffefb;
+      border: 1px solid currentColor;
+      padding: 3px 6px;
+      font: 700 0.92rem/1.25 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      margin-bottom: 8px;
+      overflow-wrap: anywhere;
+    }
+
+    .card h3 {
+      margin: 0 0 5px;
+      font-size: 1rem;
+    }
+
+    .card p {
+      margin: 0;
+      color: #3d3932;
+    }
+
+    .message {
+      border: 1px solid #d6a2a2;
+      border-left: 8px solid var(--danger);
+      background: var(--danger-bg);
+      color: var(--danger);
+      padding: 11px 12px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .empty-note {
+      color: var(--muted);
+      border: 1px dashed var(--border);
+      background: var(--panel-2);
+      padding: 13px;
+    }
+
+    .c1 { --chunk-color: var(--c1); --chunk-bg: var(--c1-bg); }
+    .c2 { --chunk-color: var(--c2); --chunk-bg: var(--c2-bg); }
+    .c3 { --chunk-color: var(--c3); --chunk-bg: var(--c3-bg); }
+    .c4 { --chunk-color: var(--c4); --chunk-bg: var(--c4-bg); }
+    .c5 { --chunk-color: var(--c5); --chunk-bg: var(--c5-bg); }
+    .c6 { --chunk-color: var(--c6); --chunk-bg: var(--c6-bg); }
+    .c7 { --chunk-color: var(--c7); --chunk-bg: var(--c7-bg); }
+    .c8 { --chunk-color: var(--c8); --chunk-bg: var(--c8-bg); }
+
+    @media (max-width: 780px) {
+      .app { width: min(100vw - 18px, 1180px); margin-top: 10px; }
+      header { display: block; }
+      .status-pill { display: inline-block; margin-top: 8px; }
+      .workbench { grid-template-rows: auto auto auto; }
+      .io-grid { grid-template-columns: 1fr; }
+      textarea, .output { min-height: 210px; }
+      .spell-row { grid-template-columns: 1fr; gap: 5px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div>
+        <h1>Sed Regex GUI</h1>
+        <p class="tagline">A local, single-file sed workbench: type a small sed spell, transform text live, and read the color-linked anatomy.</p>
+      </div>
+      <div class="status-pill">offline · no build · V1 subset</div>
+    </header>
+
+    <section class="workbench" aria-label="Sed learning workbench">
+      <div class="panel spell-panel">
+        <label for="sedSpell">Sed Spell</label>
+        <div class="spell-row">
+          <span class="prompt">sed</span>
+          <input id="sedSpell" spellcheck="false" autocomplete="off" aria-describedby="anatomyHelp">
+        </div>
+        <div class="anatomy-wrap">
+          <p class="anatomy-label" id="anatomyHelp">Colored sed anatomy</p>
+          <div class="anatomy-strip" id="anatomyStrip" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div class="io-grid">
+        <section class="panel io-pane">
+          <div class="pane-title">Victim Text</div>
+          <textarea id="victimText" spellcheck="false"></textarea>
+        </section>
+        <section class="panel io-pane">
+          <div class="pane-title">Output</div>
+          <pre class="output" id="outputText" aria-live="polite"></pre>
+        </section>
+      </div>
+
+      <section class="panel splainer">
+        <div class="splainer-head">
+          <div class="section-title">Splainer / Reference Pane</div>
+          <div class="hint">Hover a colored chunk or card to link syntax to meaning.</div>
+        </div>
+        <div id="messages"></div>
+        <div class="cards" id="cards"></div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const DEFAULT_TEXT = 'alpha 123\nbeta 456\nSTART\nitem 789\nitem 101112\nEND\ngamma 999\nfoo foo foo';
+      const DEFAULT_SPELL = 's/\\([0-9]\\+\\)/NUM/g';
+      const STORAGE_SPELL = 'sed-regex-gui-spell';
+      const STORAGE_TEXT = 'sed-regex-gui-victim-text';
+      const COLOR_CLASSES = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8'];
+
+      const sedSpell = document.getElementById('sedSpell');
+      const victimText = document.getElementById('victimText');
+      const outputText = document.getElementById('outputText');
+      const anatomyStrip = document.getElementById('anatomyStrip');
+      const cards = document.getElementById('cards');
+      const messages = document.getElementById('messages');
+
+      sedSpell.value = localStorage.getItem(STORAGE_SPELL) || DEFAULT_SPELL;
+      victimText.value = localStorage.getItem(STORAGE_TEXT) || DEFAULT_TEXT;
+
+      sedSpell.addEventListener('input', update);
+      victimText.addEventListener('input', update);
+      anatomyStrip.addEventListener('mouseover', activateFromEvent);
+      anatomyStrip.addEventListener('mouseout', clearActiveFromEvent);
+      cards.addEventListener('mouseover', activateFromEvent);
+      cards.addEventListener('mouseout', clearActiveFromEvent);
+
+      update();
+
+      function update() {
+        localStorage.setItem(STORAGE_SPELL, sedSpell.value);
+        localStorage.setItem(STORAGE_TEXT, victimText.value);
+
+        const parsed = parseSedSpell(sedSpell.value);
+        const result = parsed.error ? { output: '', messages: [parsed.error] } : executeSed(parsed, victimText.value);
+        const allMessages = parsed.messages.concat(result.messages || []);
+
+        outputText.textContent = parsed.error ? parsed.error : result.output;
+        renderMessages(allMessages);
+        renderAnatomy(parsed.chunks);
+        renderCards(parsed.chunks);
+      }
+
+      function parseSedSpell(rawSpell) {
+        const chunks = [];
+        const messages = [];
+        let spell = rawSpell.trim();
+        let quiet = false;
+        let pos = 0;
+
+        if (!spell) {
+          return { chunks, messages: ['Type a V1 sed command such as s/foo/bar/g, 3p, /foo/p, or -n 2,5p.'], error: null, quiet, address: null, command: null };
+        }
+
+        if (spell.startsWith('sed ')) {
+          spell = stripShellSedWrapper(spell);
+        }
+
+        if (spell.startsWith('-n')) {
+          quiet = true;
+          addChunk(chunks, '-n', 'Quiet mode', 'Suppresses sed\'s usual automatic printing. Lines appear only when a command explicitly prints them.');
+          pos = 2;
+          while (spell[pos] === ' ') pos += 1;
+          if ((spell[pos] === "'" || spell[pos] === '"') && spell.endsWith(spell[pos])) {
+            spell = spell.slice(0, pos) + spell.slice(pos + 1, -1);
+          }
+        }
+
+        const addressResult = parseAddress(spell, pos);
+        if (addressResult.error) return parsedError(chunks, messages, addressResult.error, quiet);
+        const address = addressResult.address;
+        pos = addressResult.pos;
+        if (address) addAddressChunks(chunks, address);
+
+        while (spell[pos] === ' ') pos += 1;
+        if (pos >= spell.length) {
+          return parsedError(chunks, messages, 'No command found after the address. V1 supports p, d, and s/pattern/replacement/flags.', quiet, address);
+        }
+
+        const commandChar = spell[pos];
+        if (commandChar === 's') {
+          const sub = parseSubstitution(spell, pos);
+          if (sub.error) return parsedError(chunks, messages, sub.error, quiet, address);
+          pos = sub.pos;
+          chunks.push(...sub.chunks);
+          const leftover = spell.slice(pos).trim();
+          if (leftover) return parsedError(chunks, messages, 'Unsupported trailing syntax in V1: ' + leftover, quiet, address);
+          return { chunks, messages, error: null, quiet, address, command: sub.command };
+        }
+
+        if (commandChar === 'p' || commandChar === 'd') {
+          const command = { type: commandChar };
+          addChunk(chunks, commandChar, commandChar === 'p' ? 'Print command' : 'Delete command', commandChar === 'p' ? 'Prints selected lines. With -n, this is how matching lines become visible.' : 'Deletes selected lines from the output. In V1 this removes the line instead of printing it.');
+          pos += 1;
+          const leftover = spell.slice(pos).trim();
+          if (leftover) return parsedError(chunks, messages, 'Unsupported trailing syntax in V1: ' + leftover, quiet, address);
+          return { chunks, messages, error: null, quiet, address, command };
+        }
+
+        return parsedError(chunks, messages, unsupportedMessage(commandChar), quiet, address);
+      }
+
+      function stripShellSedWrapper(spell) {
+        let inner = spell.slice(4).trim();
+        if ((inner.startsWith("'") && inner.endsWith("'")) || (inner.startsWith('"') && inner.endsWith('"'))) {
+          inner = inner.slice(1, -1);
+        }
+        return inner;
+      }
+
+      function parseAddress(spell, pos) {
+        const first = parseSingleAddress(spell, pos);
+        if (first.error) return first;
+        if (!first.address) return { address: null, pos };
+        let next = first.pos;
+        if (spell[next] === ',') {
+          const second = parseSingleAddress(spell, next + 1);
+          if (second.error) return second;
+          if (!second.address) return { error: 'Unsupported address form. Ranges need a second line number or /regex/ address.' };
+          return { address: { type: 'range', start: first.address, end: second.address, text: spell.slice(pos, second.pos) }, pos: second.pos };
+        }
+        return { address: first.address, pos: next };
+      }
+
+      function parseSingleAddress(spell, pos) {
+        if (spell[pos] === '/') {
+          const found = readDelimited(spell, pos, '/');
+          if (found.error) return { error: 'Unclosed regex address.' };
+          return { address: { type: 'regex', pattern: found.content, text: spell.slice(pos, found.pos) }, pos: found.pos };
+        }
+        const numberMatch = spell.slice(pos).match(/^\d+/);
+        if (numberMatch) {
+          return { address: { type: 'line', line: Number(numberMatch[0]), text: numberMatch[0] }, pos: pos + numberMatch[0].length };
+        }
+        return { address: null, pos };
+      }
+
+      function parseSubstitution(spell, pos) {
+        const delimiter = spell[pos + 1];
+        if (!delimiter || /\s/.test(delimiter)) return { error: 'Could not parse this substitution command. Expected s/pattern/replacement/flags.' };
+
+        const patternPart = readDelimited(spell, pos + 1, delimiter);
+        if (patternPart.error) return { error: 'Unclosed substitution pattern.' };
+        const replacementPart = readDelimited(spell, patternPart.pos - 1, delimiter);
+        if (replacementPart.error) return { error: 'Unclosed substitution replacement.' };
+
+        const flagsText = spell.slice(replacementPart.pos).match(/^[a-zA-Z]*/)[0];
+        const flags = flagsText.split('');
+        const unsupportedFlags = flags.filter(flag => flag !== 'g' && flag !== 'p');
+        if (unsupportedFlags.length) return { error: 'Unsupported substitution flag in V1: ' + unsupportedFlags.join(', ') };
+
+        const chunks = [];
+        addChunk(chunks, 's' + delimiter + delimiter + delimiter, 'Substitution command', 'For each selected line, replace text matching the pattern with the replacement text.');
+        addChunk(chunks, patternPart.content || '(empty pattern)', 'Pattern', explainPattern(patternPart.content));
+        addRegexDetailChunks(chunks, patternPart.content);
+        addChunk(chunks, replacementPart.content || '(empty replacement)', 'Replacement text', explainReplacement(replacementPart.content));
+        if (flags.includes('g')) addChunk(chunks, 'g', 'Global flag', 'Replace every match on each selected line, not just the first match.');
+        if (flags.includes('p')) addChunk(chunks, 'p', 'Print flag', 'Print the line when a substitution succeeds. This is especially useful with -n.');
+
+        return {
+          pos: replacementPart.pos + flagsText.length,
+          chunks,
+          command: { type: 's', pattern: patternPart.content, replacement: replacementPart.content, flags, delimiter }
+        };
+      }
+
+      function readDelimited(text, delimiterIndex, delimiter) {
+        let content = '';
+        for (let i = delimiterIndex + 1; i < text.length; i += 1) {
+          const ch = text[i];
+          if (ch === '\\' && i + 1 < text.length) {
+            content += ch + text[i + 1];
+            i += 1;
+            continue;
+          }
+          if (ch === delimiter) return { content, pos: i + 1 };
+          content += ch;
+        }
+        return { error: true };
+      }
+
+      function addAddressChunks(chunks, address) {
+        if (address.type === 'range') {
+          addChunk(chunks, address.text, 'Address range', 'Selects a run of lines from the first address through the next line that matches the second address.');
+          addSingleAddressDetail(chunks, address.start, 'Range start');
+          addSingleAddressDetail(chunks, address.end, 'Range end');
+        } else {
+          addSingleAddressDetail(chunks, address, address.type === 'line' ? 'Line address' : 'Regex address');
+        }
+      }
+
+      function addSingleAddressDetail(chunks, address, title) {
+        if (address.type === 'line') {
+          addChunk(chunks, address.text, title, 'Selects line ' + address.line + ' of the input. Sed line numbers start at 1.');
+        } else if (address.type === 'regex') {
+          addChunk(chunks, address.text, title, 'Selects lines whose text matches this regular expression address.');
+        }
+      }
+
+      function addRegexDetailChunks(chunks, pattern) {
+        const details = [];
+        const captureRe = /\\\((.*?)\\\)/g;
+        let match;
+        while ((match = captureRe.exec(pattern)) !== null) {
+          details.push({ text: match[0], title: 'Capture group', explanation: 'Basic sed grouping syntax. It saves the matched text so replacement backreferences like \\1 can reuse it.' });
+        }
+        const bracketRe = /\[[^\]]+\]/g;
+        while ((match = bracketRe.exec(pattern)) !== null) {
+          details.push({ text: match[0], title: bracketTitle(match[0]), explanation: bracketExplanation(match[0]) });
+        }
+        if (pattern.includes('\\+')) {
+          details.push({ text: '\\+', title: 'One-or-more quantifier', explanation: 'In basic regular expressions, escaped \\+ repeats the previous item one or more times.' });
+        }
+        details.forEach(detail => addChunk(chunks, detail.text, detail.title, detail.explanation));
+      }
+
+      function bracketTitle(text) {
+        if (text === '[0-9]') return 'Digit range';
+        if (text === '[a-z]') return 'Lowercase range';
+        if (text === '[A-Z]') return 'Uppercase range';
+        return 'Bracket expression';
+      }
+
+      function bracketExplanation(text) {
+        if (text === '[0-9]') return 'Matches any digit from 0 through 9.';
+        if (text === '[a-z]') return 'Matches any lowercase ASCII letter from a through z.';
+        if (text === '[A-Z]') return 'Matches any uppercase ASCII letter from A through Z.';
+        return 'Matches one character from the set or range inside the brackets.';
+      }
+
+      function explainPattern(pattern) {
+        if (!pattern) return 'An empty pattern is not a focus of this V1 tool; JavaScript will treat it as matching an empty spot.';
+        return 'The search regular expression. V1 translates common basic sed syntax such as \\( ... \\) groups and escaped \\+ into JavaScript regex syntax.';
+      }
+
+      function explainReplacement(replacement) {
+        if (!replacement) return 'An empty replacement deletes the matched text.';
+        if (/\\\d/.test(replacement)) return 'Replacement text. Backreferences such as \\1 insert text captured by earlier groups.';
+        return 'Literal replacement text inserted where the pattern matches.';
+      }
+
+      function executeSed(parsed, input) {
+        if (!parsed.command) return { output: input, messages: [] };
+        try {
+          const lines = input.split('\n');
+          const out = [];
+          const rangeState = { active: false };
+          lines.forEach((line, index) => {
+            const lineNo = index + 1;
+            const selected = addressMatches(parsed.address, line, lineNo, rangeState);
+            const command = parsed.command;
+
+            if (command.type === 'p') {
+              if (!parsed.quiet) out.push(line);
+              if (selected) out.push(line);
+              return;
+            }
+
+            if (command.type === 'd') {
+              if (!selected && !parsed.quiet) out.push(line);
+              return;
+            }
+
+            if (command.type === 's') {
+              let current = line;
+              let substituted = false;
+              if (selected) {
+                const regexSource = basicSedPatternToJs(command.pattern);
+                const regex = new RegExp(regexSource, command.flags.includes('g') ? 'g' : '');
+                const testRegex = new RegExp(regexSource);
+                const replacement = sedReplacementToJs(command.replacement);
+                substituted = testRegex.test(line);
+                current = line.replace(regex, replacement);
+              }
+              if (!parsed.quiet) out.push(current);
+              if (parsed.quiet && command.flags.includes('p') && selected && substituted) out.push(current);
+              if (!parsed.quiet && command.flags.includes('p') && selected && substituted) out.push(current);
+            }
+          });
+          return { output: out.join('\n'), messages: [] };
+        } catch (error) {
+          return { output: 'Could not execute this sed-ish command.', messages: ['Could not execute this sed-ish command: ' + error.message] };
+        }
+      }
+
+      function addressMatches(address, line, lineNo, rangeState) {
+        if (!address) return true;
+        if (address.type === 'line') return lineNo === address.line;
+        if (address.type === 'regex') return new RegExp(basicSedPatternToJs(address.pattern)).test(line);
+        if (address.type === 'range') {
+          if (!rangeState.active && singleAddressMatches(address.start, line, lineNo)) rangeState.active = true;
+          const selected = rangeState.active;
+          if (rangeState.active && singleAddressMatches(address.end, line, lineNo)) rangeState.active = false;
+          return selected;
+        }
+        return false;
+      }
+
+      function singleAddressMatches(address, line, lineNo) {
+        if (address.type === 'line') return lineNo === address.line;
+        if (address.type === 'regex') return new RegExp(basicSedPatternToJs(address.pattern)).test(line);
+        return false;
+      }
+
+      function basicSedPatternToJs(pattern) {
+        return pattern
+          .replace(/\\\(/g, '(')
+          .replace(/\\\)/g, ')')
+          .replace(/\\\+/g, '+');
+      }
+
+      function sedReplacementToJs(replacement) {
+        return replacement.replace(/\\([1-9])/g, '$$$1');
+      }
+
+      function addChunk(chunks, text, title, explanation) {
+        const idBase = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'chunk';
+        chunks.push({
+          id: idBase + '-' + chunks.length,
+          text,
+          title,
+          explanation,
+          colorClass: COLOR_CLASSES[chunks.length % COLOR_CLASSES.length]
+        });
+      }
+
+      function parsedError(chunks, messages, error, quiet, address) {
+        return { chunks, messages, error, quiet, address, command: null };
+      }
+
+      function unsupportedMessage(commandChar) {
+        const names = { h: 'hold space', H: 'hold space append', g: 'get hold space', G: 'append hold space', x: 'exchange hold and pattern space', b: 'branching', t: 'branching on substitution', N: 'multiline pattern space', D: 'multiline delete', P: 'multiline print' };
+        if (names[commandChar]) return 'Unsupported feature in V1: ' + names[commandChar] + '.';
+        return 'Unsupported command in V1: ' + commandChar + '. Supported commands are p, d, and s/pattern/replacement/flags.';
+      }
+
+      function renderMessages(list) {
+        messages.innerHTML = '';
+        list.filter(Boolean).forEach(text => {
+          const div = document.createElement('div');
+          div.className = 'message';
+          div.textContent = text;
+          messages.appendChild(div);
+        });
+      }
+
+      function renderAnatomy(chunks) {
+        anatomyStrip.innerHTML = '';
+        if (!chunks.length) {
+          const note = document.createElement('div');
+          note.className = 'empty-note';
+          note.textContent = 'No syntax chunks yet.';
+          anatomyStrip.appendChild(note);
+          return;
+        }
+        chunks.forEach(chunk => {
+          const span = document.createElement('span');
+          span.className = 'chunk ' + chunk.colorClass;
+          span.dataset.chunkId = chunk.id;
+          span.textContent = chunk.text;
+          span.title = chunk.title;
+          anatomyStrip.appendChild(span);
+        });
+      }
+
+      function renderCards(chunks) {
+        cards.innerHTML = '';
+        if (!chunks.length) {
+          const note = document.createElement('div');
+          note.className = 'empty-note';
+          note.textContent = 'The explanation cards appear here as soon as V1 recognizes part of the sed command.';
+          cards.appendChild(note);
+          return;
+        }
+        chunks.forEach(chunk => {
+          const card = document.createElement('article');
+          card.className = 'card ' + chunk.colorClass;
+          card.dataset.chunkId = chunk.id;
+
+          const code = document.createElement('code');
+          code.className = 'card-code';
+          code.textContent = chunk.text;
+
+          const title = document.createElement('h3');
+          title.textContent = chunk.title;
+
+          const explanation = document.createElement('p');
+          explanation.textContent = chunk.explanation;
+
+          card.append(code, title, explanation);
+          cards.appendChild(card);
+        });
+      }
+
+      function activateFromEvent(event) {
+        const target = event.target.closest('[data-chunk-id]');
+        if (!target) return;
+        setActive(target.dataset.chunkId);
+      }
+
+      function clearActiveFromEvent(event) {
+        const target = event.target.closest('[data-chunk-id]');
+        if (!target) return;
+        if (event.relatedTarget && target.contains(event.relatedTarget)) return;
+        clearActive();
+      }
+
+      function setActive(id) {
+        clearActive();
+        document.querySelectorAll('[data-chunk-id="' + CSS.escape(id) + '"]').forEach(el => el.classList.add('is-active'));
+      }
+
+      function clearActive() {
+        document.querySelectorAll('.is-active').forEach(el => el.classList.remove('is-active'));
+      }
+    }());
+  </script>
+</body>
+</html>
