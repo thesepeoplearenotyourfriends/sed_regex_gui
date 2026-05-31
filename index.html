@@ -614,6 +614,16 @@
       const STORAGE_COLUMN_SPLIT = 'sed-regex-gui-column-split';
       const STORAGE_PINNED_PATTERNS = 'sed-regex-gui-pinned-patterns';
       const COLOR_CLASSES = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8'];
+      const REGEX_MEANING_RULES = [
+        { pattern: '^$', meaning: 'empty lines', sentence: 'lines that are completely empty' },
+        { pattern: '^[ \\t]*$', meaning: 'blank or whitespace-only lines', sentence: 'lines that contain nothing except optional spaces or tabs' },
+        { pattern: '^[ \\t]*#', meaning: 'lines whose first non-indentation character is #', sentence: 'lines that start with optional spaces or tabs followed by #' },
+        { pattern: '[0-9]\\+', meaning: 'one or more digits', sentence: 'a run of one or more digits' },
+        { pattern: '[A-Za-z]\\+', meaning: 'one or more letters', sentence: 'a run of one or more letters' },
+        { pattern: '[A-Za-z0-9_]\\+', meaning: 'one or more word-like characters: letters, digits, or underscores', sentence: 'a run of letters, digits, or underscores' },
+        { pattern: '.*', meaning: 'any amount of text', sentence: 'any amount of text, including none' }
+      ];
+
       const PATTERN_LIBRARY = [
         patternEntry('replace-literal-text', 'Replace literal text', 's/OLD/NEW/g', 'recipe', 'Substitution basics', 'Replace every OLD with NEW on each line.', ['replace', 'find replace', 'substitute', 'change text', 'old new', 'literal', 'search replace'], 'replace-command', '', 'supported', 'OLD alpha\nOLD beta', 'NEW alpha\nNEW beta', ['OLD', 'NEW']),
         patternEntry('replace-first-foo', 'Replace first foo with bar', 's/foo/bar/', 'command', 'Substitution basics', 'Replace the first foo on each selected line.', ['replace', 'substitute', 'first match', 'foo bar', 'change foo to bar'], 'replace-command', '', 'supported', 'foo foo', 'bar foo', []),
@@ -1013,7 +1023,8 @@
 
         const description = document.createElement('p');
         description.className = 'trainer-description';
-        description.textContent = entry.description;
+        const trainerMeaning = trainerSemanticHint(entry.snippet);
+        description.textContent = trainerMeaning ? entry.description + ' Meaning: ' + trainerMeaning + '.' : entry.description;
 
         const tags = document.createElement('div');
         tags.className = 'trainer-tags';
@@ -1050,6 +1061,15 @@
         }
         card.append(head, code, description, ...extras, tags, actions);
         return card;
+      }
+
+
+      function trainerSemanticHint(snippet) {
+        const parsed = parseSedSpell(snippet);
+        if (parsed.error || !parsed.command) return '';
+        if (parsed.command.type === 's') return 'the pattern is ' + explainRegex(parsed.command.pattern).meaning;
+        if (parsed.address && parsed.address.type === 'regex') return 'the address selects ' + explainRegex(parsed.address.pattern).meaning;
+        return '';
       }
 
       function handleTrainerClick(event) {
@@ -1445,44 +1465,161 @@
         } else if (address.type === 'last') {
           addChunk(chunks, address.text, title, 'Selects the last line of the input.');
         } else if (address.type === 'regex') {
-          addChunk(chunks, address.text, title, 'Selects lines whose text matches this regular expression address.');
+          addChunk(chunks, address.text, title, 'A sed address. It selects only lines whose text matches this regex: ' + explainRegex(address.pattern).meaning + '.');
+          addRegexDetailChunks(chunks, address.pattern);
         }
       }
 
       function addRegexDetailChunks(chunks, pattern) {
+        tokenizeRegexForExplanation(pattern).forEach(detail => addChunk(chunks, detail.text, detail.title, detail.explanation));
+      }
+
+      function tokenizeRegexForExplanation(pattern) {
         const details = [];
-        const captureRe = /\\\((.*?)\\\)/g;
-        let match;
-        while ((match = captureRe.exec(pattern)) !== null) {
-          details.push({ text: match[0], title: 'Capture group', explanation: 'Basic sed grouping syntax. It saves the matched text so replacement backreferences like \\1 can reuse it.' });
+        const seen = new Set();
+        const add = text => {
+          const atom = describeRegexAtom(text);
+          if (!atom || seen.has(text + atom.title)) return;
+          seen.add(text + atom.title);
+          details.push({ text, title: atom.title, explanation: atom.what });
+        };
+
+        for (let i = 0; i < pattern.length; i += 1) {
+          const ch = pattern[i];
+          if (ch === '[') {
+            const end = pattern.indexOf(']', i + 1);
+            if (end !== -1) {
+              add(pattern.slice(i, end + 1));
+              i = end;
+              continue;
+            }
+          }
+          if (ch === '\\' && i + 1 < pattern.length) {
+            const token = pattern.slice(i, i + 2);
+            if (token === '\\(') {
+              const close = pattern.indexOf('\\)', i + 2);
+              if (close !== -1) {
+                const text = pattern.slice(i, close + 2);
+                if (!seen.has(text + 'Capture group')) {
+                  seen.add(text + 'Capture group');
+                  details.push({ text, title: 'Capture group', explanation: 'Basic sed grouping syntax. It saves the matched text so replacement backreferences like \\1 can reuse it.' });
+                  tokenizeRegexForExplanation(pattern.slice(i + 2, close)).forEach(inner => {
+                    if (!seen.has(inner.text + inner.title)) {
+                      seen.add(inner.text + inner.title);
+                      details.push(inner);
+                    }
+                  });
+                }
+                i = close + 1;
+                continue;
+              }
+            }
+            add(token);
+            i += 1;
+            continue;
+          }
+          if ('^$*.#:='.includes(ch)) add(ch);
         }
-        const bracketRe = /\[[^\]]+\]/g;
-        while ((match = bracketRe.exec(pattern)) !== null) {
-          details.push({ text: match[0], title: bracketTitle(match[0]), explanation: bracketExplanation(match[0]) });
-        }
-        if (pattern.includes('\\+')) {
-          details.push({ text: '\\+', title: 'One-or-more quantifier', explanation: 'In basic regular expressions, escaped \\+ repeats the previous item one or more times.' });
-        }
-        details.forEach(detail => addChunk(chunks, detail.text, detail.title, detail.explanation));
+        return details;
       }
 
       function bracketTitle(text) {
-        if (text === '[0-9]') return 'Digit range';
-        if (text === '[a-z]') return 'Lowercase range';
-        if (text === '[A-Z]') return 'Uppercase range';
+        const atom = describeRegexAtom(text);
+        if (atom) return atom.title;
         return 'Bracket expression';
       }
 
       function bracketExplanation(text) {
-        if (text === '[0-9]') return 'Matches any digit from 0 through 9.';
-        if (text === '[a-z]') return 'Matches any lowercase ASCII letter from a through z.';
-        if (text === '[A-Z]') return 'Matches any uppercase ASCII letter from A through Z.';
+        const atom = describeRegexAtom(text);
+        if (atom) return atom.what;
         return 'Matches one character from the set or range inside the brackets.';
+      }
+
+      function normalizeRegexPattern(pattern) {
+        return pattern.replace(/\t/g, '\\t');
+      }
+
+      function regexRule(pattern) {
+        const normalized = normalizeRegexPattern(pattern);
+        return REGEX_MEANING_RULES.find(rule => rule.pattern === normalized) || null;
+      }
+
+      function explainRegex(pattern) {
+        if (!pattern) return { meaning: 'empty matches', sentence: 'empty matches', confidence: 'fallback', notes: ['An empty regex can match without consuming text.'] };
+        const normalizedPattern = normalizeRegexPattern(pattern);
+        const direct = regexRule(pattern);
+        if (direct) return { meaning: direct.meaning, sentence: direct.sentence, confidence: 'known', notes: regexDialectNotes(pattern) };
+
+        if (/^\^[A-Za-z0-9_ .#:=/-]+$/.test(normalizedPattern)) {
+          return { meaning: 'lines starting with ' + normalizedPattern.slice(1), sentence: 'lines whose text starts with ' + normalizedPattern.slice(1), confidence: 'composed', notes: regexDialectNotes(pattern) };
+        }
+        if (/^[A-Za-z0-9_ .#:=/-]+\$$/.test(normalizedPattern)) {
+          return { meaning: 'lines ending with ' + normalizedPattern.slice(0, -1), sentence: 'lines whose text ends with ' + normalizedPattern.slice(0, -1), confidence: 'composed', notes: regexDialectNotes(pattern) };
+        }
+        if (/^[A-Za-z0-9_ .#:=/-]+$/.test(normalizedPattern)) {
+          return { meaning: 'lines containing ' + normalizedPattern, sentence: 'lines that contain the literal text ' + normalizedPattern, confidence: 'composed', notes: regexDialectNotes(pattern) };
+        }
+
+        const parts = regexPartialMeanings(normalizedPattern);
+        const partial = parts.length ? 'a regex that ' + joinPhrases(parts) : 'this regex: ' + pattern;
+        return { meaning: partial, sentence: partial, confidence: parts.length ? 'partial' : 'fallback', notes: regexDialectNotes(pattern) };
+      }
+
+      function regexPartialMeanings(pattern) {
+        const parts = [];
+        if (pattern.startsWith('^')) parts.push('starts at the beginning of the line');
+        if (pattern.endsWith('$')) parts.push('ends at the end of the line');
+        if (pattern.includes('#')) parts.push('includes a literal #');
+        if (pattern.includes('[0-9]')) parts.push('mentions digits');
+        if (pattern.includes('[ \\t]') || pattern.includes('[ ' + String.fromCharCode(9) + ']')) parts.push('allows spaces or tabs');
+        if (pattern.includes('.*')) parts.push('can consume any amount of text');
+        return parts;
+      }
+
+      function joinPhrases(parts) {
+        if (parts.length <= 1) return parts[0] || '';
+        if (parts.length === 2) return parts[0] + ' and ' + parts[1];
+        return parts.slice(0, -1).join(', ') + ', and ' + parts[parts.length - 1];
+      }
+
+      function regexDialectNotes(pattern) {
+        const notes = [];
+        if (pattern.includes('#')) notes.push('# is literal here. In shell scripts and many config files, # starts a comment.');
+        if (/(^|[^\\])\./.test(pattern)) notes.push('. is special: it means any character. Use \\. for a literal dot.');
+        if (pattern.includes('*')) notes.push('* repeats the previous item zero or more times.');
+        if (/(^|[^\\])\+/.test(pattern)) notes.push('+ is usually literal in basic sed regex; use \\+ for one-or-more.');
+        if (pattern.includes('\\+')) notes.push('\\+ is the basic sed regex spelling for one-or-more.');
+        if (pattern.includes('\\?')) notes.push('\\? means zero-or-one in many sed versions, but portability varies.');
+        return notes;
+      }
+
+      function describeRegexAtom(text) {
+        if (text === '^') return { title: 'Start of line', what: 'An anchor for the beginning of a line.', here: 'Forces the match to begin at the start of the line; in ^[ \\t]*# it keeps the # comment marker at the start except for allowed indentation.', example: '^foo matches foo only at the start of a line.', mistake: '^ is special at the start of a regex; inside [^...] it means “not”.' };
+        if (text === '$') return { title: 'End of line', what: 'An anchor for the end of a line.', here: 'Forces the match to reach the end of the line.', example: 'foo$ matches foo only at the end of a line.', mistake: '$ anchors the regex; use \\$ for a literal dollar sign.' };
+        if (text === '[0-9]') return { title: 'Digit range', what: 'A bracket expression matching one digit from 0 through 9.', here: 'Matches one numeric character at this point.', example: '[0-9] matches 7.', mistake: 'A bracket expression matches one character unless a quantifier like * or \\+ follows it.' };
+        if (text === '[a-z]') return { title: 'Lowercase range', what: 'A bracket expression matching one lowercase ASCII letter from a through z.', here: 'Matches one lowercase letter at this point.', example: '[a-z] matches q.', mistake: 'Locale settings can affect ranges in real sed; this trainer treats them simply.' };
+        if (text === '[A-Z]') return { title: 'Uppercase range', what: 'A bracket expression matching one uppercase ASCII letter from A through Z.', here: 'Matches one uppercase letter at this point.', example: '[A-Z] matches Q.', mistake: 'Locale settings can affect ranges in real sed; this trainer treats them simply.' };
+        if (text === '[A-Za-z]') return { title: 'Letter range', what: 'A bracket expression matching one ASCII letter, uppercase or lowercase.', here: 'Matches one alphabetic character at this point.', example: '[A-Za-z] matches A or z.', mistake: 'It matches one letter; add \\+ to match a whole run of letters.' };
+        if (text === '[A-Za-z0-9_]') return { title: 'Word-like character', what: 'A bracket expression matching one letter, digit, or underscore.', here: 'Matches one word-like character at this point.', example: '[A-Za-z0-9_] matches A, 7, or _.', mistake: 'It is not Unicode-aware in this trainer; it describes simple ASCII word-like text.' };
+        if (text === '[ \\t]') return { title: 'Space or tab', what: 'A bracket expression matching one character: either a space or a tab.', here: 'Allows indentation made from spaces or tabs.', example: '[ \\t]* matches optional indentation.', mistake: 'The bracket expression alone matches one character; * makes it match any amount of indentation.' };
+        if (text === '[^,]') return { title: 'Not comma', what: 'A negated bracket expression matching any one character except comma.', here: 'Consumes non-comma text one character at a time.', example: '[^,]* matches text up to a comma.', mistake: '^ negates only because it appears immediately after [.' };
+        if (text === '[^\"]') return { title: 'Not double quote', what: 'A negated bracket expression matching any one character except a double quote.', here: 'Consumes text that stays inside a quoted string.', example: '[^\"]* matches simple quoted content.', mistake: 'This does not understand escaped quotes.' };
+        if (text === '[^/)]') return { title: 'Not slash or closing parenthesis', what: 'A negated bracket expression matching any one character except slash or closing parenthesis.', here: 'Consumes text until one of those delimiter characters appears.', example: '[^/)]* stops before / or ).', mistake: '^ negates only at the start of a bracket expression.' };
+        if (text === '*') return { title: 'Zero or more', what: 'Repeats the previous item zero or more times.', here: 'Allows the previous item to be absent, appear once, or appear many times; after [ \\t], it allows no indentation, one space/tab, or many spaces/tabs.', example: '[ \\t]* matches no indentation, one tab, or many spaces.', mistake: '* repeats the previous item; it does not stand alone.' };
+        if (text === '\\+') return { title: 'One-or-more quantifier', what: 'In basic regular expressions, escaped \\+ repeats the previous item one or more times.', here: 'It makes the previous token match a run instead of a single character.', example: '[0-9]\\+ matches 123 and 101112.', mistake: 'Plain + is usually literal in basic sed regex. Use \\+ for repetition.' };
+        if (text === '\\?') return { title: 'Zero-or-one quantifier', what: 'In many sed versions, escaped \\? repeats the previous item zero or one time.', here: 'Makes the previous token optional.', example: 'colou\\?r matches color or colour in many sed versions.', mistake: '\\? is less portable than basic anchors/classes; check your sed dialect.' };
+        if (text === '.') return { title: 'Any character', what: '. is special in regex: it matches any single character.', here: 'Allows any character at this position.', example: 'a.c matches abc and a-c.', mistake: 'Use \\. for a literal dot.' };
+        if (text === '\\.') return { title: 'Literal dot', what: 'An escaped dot matches a real period character.', here: 'Requires an actual dot at this position.', example: '\\.txt matches .txt.', mistake: 'An unescaped . means any character.' };
+        if (text === '#') return { title: 'Literal # character', what: 'A normal literal hash character in this regex.', here: 'Matches the comment marker. In many shell/config files, # begins a comment.', example: '^# matches lines that start with #.', mistake: '# is not a regex comment here; it is text to match.' };
+        if (text === ':') return { title: 'Literal colon', what: 'A normal literal colon character.', here: 'Requires a colon at this point in the text.', example: '.*: matches through a colon.', mistake: 'With .* before it, sed usually reaches the last possible colon.' };
+        if (text === '=') return { title: 'Literal equals sign', what: 'A normal literal equals sign character.', here: 'Requires = at this point in the text.', example: 'KEY= matches the literal text KEY=.', mistake: '= has no special regex meaning here.' };
+        return null;
       }
 
       function explainPattern(pattern) {
         if (!pattern) return 'An empty pattern is not a focus of this V1 tool; JavaScript will treat it as matching an empty spot.';
-        return 'The search regular expression. V1 translates common basic sed syntax such as \\( ... \\) groups and escaped \\+ into JavaScript regex syntax.';
+        const phrase = explainRegex(pattern);
+        return 'The search regular expression: ' + phrase.meaning + '. V1 translates common basic sed syntax such as \\( ... \\) groups and escaped \\+ into JavaScript regex syntax.';
       }
 
       function explainReplacement(replacement) {
@@ -1587,7 +1724,9 @@
           mistake: ''
         };
         if (title === 'Substitution command') return { what: 'The s command is sed substitution: s/pattern/replacement/flags.', here: 'This command replaces text matched by the pattern with the replacement on selected lines.', example: 's/foo/bar/g changes every foo on a line to bar.', mistake: 'A missing delimiter makes sed unable to tell where the pattern or replacement ends.' };
-        if (title === 'Pattern') return { what: 'The pattern is the regular expression sed searches for.', here: 'Only text matching this pattern is changed, printed, or selected by the command.', example: '[0-9]\\+ matches 123 as one run of digits.', mistake: 'In basic sed regex, use \\+ for one-or-more; a plain + is usually literal.' };
+        if (title === 'Pattern') return { what: 'The pattern is the regular expression sed searches for.', here: 'Here it means ' + explainRegex(text === '(empty pattern)' ? '' : text).sentence + '.', example: '[0-9]\\+ matches 123 as one run of digits.', mistake: regexDialectNotes(text).join(' ') || 'In basic sed regex, use \\+ for one-or-more; a plain + is usually literal.' };
+        const atom = describeRegexAtom(text);
+        if (atom) return atom;
         if (title === 'Replacement text') return { what: 'The replacement is inserted where the pattern matched.', here: text === '(empty replacement)' ? 'This deletes each matched piece of text.' : 'This text is written in place of each match.', example: 'NUM replaces matched digits with the literal text NUM.', mistake: 'Use \\1, \\2, etc. to reuse capture groups; $1 is not sed replacement syntax.' };
         if (title === 'Global flag') return { what: 'The g flag means global within each selected line.', here: 'Without it, only the first match on a line is replaced.', example: 's/foo/bar/g changes all foo matches on the line.', mistake: 'g does not mean all lines; addresses decide which lines are selected.' };
         if (title === 'Print flag') return { what: 'The p flag prints a line when substitution succeeds.', here: 'It can show only changed lines when paired with -n.', example: '-n s/foo/bar/p prints lines where foo was replaced.', mistake: 'Without -n, p can make matching lines appear twice.' };
@@ -1595,7 +1734,7 @@
         if (title === 'Delete command') return { what: 'The d command deletes selected lines from output.', here: 'Lines selected by the address are removed.', example: '/^$/d removes blank lines.', mistake: 'A delete command affects whole lines, not just the matching text inside them.' };
         if (title === 'Address range') return { what: 'An address range selects consecutive lines.', here: 'Selection starts at the first address and continues through the next line matching the second address.', example: '/START/,/END/p prints a marked block.', mistake: 'The ending address line is included in the selected range.' };
         if (title === 'Line address') return { what: 'A line address selects one numbered line.', here: 'Only that 1-based line number is selected.', example: '3p prints line 3.', mistake: 'Sed line numbers start at 1, not 0.' };
-        if (title === 'Regex address') return { what: 'A regex address selects whole lines whose content matches.', here: 'The command runs only on matching lines.', example: '/foo/d deletes lines containing foo.', mistake: 'The slashes delimit the address; they are not part of the text being matched.' };
+        if (title === 'Regex address') return { what: 'A sed address. It selects only lines whose text matches this regex.', here: explanation.replace(/^A sed address\. /, ''), example: '/foo/d deletes lines containing foo.', mistake: 'The slashes delimit the address; they are not part of the text being matched.' };
         if (title === 'Range start') return { what: 'The range start is the address that turns selection on.', here: 'When this address matches, the range begins on that same line.', example: '/START/,/END/p begins printing at START.', mistake: 'If it never matches, the range never starts.' };
         if (title === 'Range end') return { what: 'The range end is the address that turns selection off.', here: 'The matching end line is included, then the range stops.', example: '/START/,/END/d deletes through END.', mistake: 'A later START can begin another range after the previous END.' };
         if (title === 'Capture group') return { what: 'A basic sed capture group is written as \\( ... \\).', here: 'It saves matched text so the replacement can reuse it.', example: 's/\\([0-9]\\+\\)/[\\1]/ wraps digits in brackets.', mistake: 'Plain parentheses are literal in basic sed regex; escape them to capture.' };
@@ -1614,9 +1753,9 @@
 
       function describeRecognizedAddress(address) {
         if (!address) return '(none)';
-        if (address.text) return address.text;
         if (address.type === 'line') return String(address.line);
-        if (address.type === 'regex') return '/' + address.pattern + '/';
+        if (address.type === 'regex') return '/' + address.pattern + '/ (' + explainRegex(address.pattern).meaning + ')';
+        if (address.text) return address.text;
         return '(recognized range)';
       }
 
@@ -1643,37 +1782,43 @@
 
       function summarizeCommand(parsed) {
         const addressText = summarizeAddress(parsed.address);
-        if (parsed.command.type === 's') {
-          return 'Replace ' + describePattern(parsed.command.pattern) + ' with ' + describeReplacement(parsed.command.replacement) + ' ' + (parsed.command.flags.includes('g') ? 'for every match' : 'for the first match') + ' on ' + addressText + '.';
-        }
+        if (parsed.command.type === 's') return summarizeSubstitution(parsed, addressText);
         if (parsed.command.type === 'd') return 'Delete ' + addressText + '.';
         if (parsed.command.type === 'p') return 'Print ' + addressText + (parsed.quiet ? '.' : ' (without -n, sed also prints all lines automatically).');
         return '';
       }
 
+      function summarizeSubstitution(parsed, addressText) {
+        const command = parsed.command;
+        const scope = addressText === 'each selected line' ? 'on each selected line' : 'on ' + addressText;
+        if (command.pattern === '[0-9]\\+' && command.replacement === 'NUM' && command.flags.includes('g')) return 'Replace every run of digits with NUM ' + scope + '.';
+        if (command.pattern === '\\([0-9]\\+\\)' && command.replacement === '[\\1]' && command.flags.includes('g')) return 'Wrap every run of digits in square brackets ' + scope + '.';
+        if (command.pattern === '.*: ' && !command.replacement) return 'Remove everything through the last colon-space, leaving the text after it.';
+
+        const patternText = describePattern(command.pattern);
+        const replacementText = describeReplacement(command.replacement);
+        const howMany = command.flags.includes('g') ? 'every ' : 'the first ';
+        return 'Replace ' + howMany + patternText + ' with ' + replacementText + ' ' + scope + '.';
+      }
+
       function summarizeAddress(address) {
         if (!address) return 'each selected line';
         if (address.type === 'line') return 'line ' + address.line;
-        if (address.type === 'regex') return 'lines that match ' + address.pattern;
+        if (address.type === 'last') return 'the last line';
+        if (address.type === 'regex') return explainRegex(address.pattern).meaning;
         if (address.type === 'range') return 'lines from the first ' + addressLabel(address.start) + ' match through the next ' + addressLabel(address.end) + ' match';
         return 'selected lines';
       }
 
       function addressLabel(address) {
         if (address.type === 'line') return 'line ' + address.line;
-        if (address.type === 'regex') return address.pattern;
+        if (address.type === 'regex') return explainRegex(address.pattern).meaning;
         return 'address';
       }
 
       function describePattern(pattern) {
-        if (pattern === '[0-9]\\+') return 'every run of digits';
-        if (pattern === '[A-Za-z]\\+') return 'every run of letters';
-        if (pattern === '^') return 'the start of the line';
-        if (pattern === '$') return 'the end of the line';
-        if (pattern === '^$') return 'blank lines';
         if (pattern === '  *') return 'runs of spaces';
-        if (!pattern) return 'empty matches';
-        return 'text matching ' + pattern;
+        return explainRegex(pattern).meaning;
       }
 
       function describeReplacement(replacement) {
