@@ -1,15 +1,15 @@
 # Sed Regex GUI
 
-A dependency-free browser workbench for learning and testing small text-processing ideas in a single local HTML file.
+A dependency-free, small multi-mode browser workbench for learning and testing selected sed and Bash text-processing ideas in a single local HTML file.
 
 ## What it is
 
-Sed Regex GUI is a local, single-file app that runs entirely in the browser. It currently has two modes:
+Sed Regex GUI is a local, single-file app that runs entirely in the browser. The toolbar mode selector switches between the current workbench modes:
 
-- **sed mode** — a live sed-ish command analyzer and transformer for common `p`, `d`, and `s/pattern/replacement/flags` workflows.
-- **bash mode** — a Bash-ism analyzer/demonstrator for selected Bash syntax and expansions.
+- **sed mode** — a live sed/regex command analyzer and transformer for common `p`, `d`, and `s/pattern/replacement/flags` workflows.
+- **bash mode** — a Bash-ism analyzer/demonstrator for selected Bash syntax and expansions, not a terminal or shell executor.
 
-The project intentionally stays small and portable: no npm, no CDN assets, no external dependencies, no WASM shell, and no bundled fake Linux environment.
+The project intentionally stays small and portable: no npm, no CDN assets, no external dependencies, no WASM shell, no browser terminal, and no bundled fake Linux environment. It is designed for local single-file usage.
 
 ## Installation / running
 
@@ -33,21 +33,21 @@ Sed mode is still a browser simulator for the supported subset, not a replacemen
 
 ### bash mode
 
-Bash mode is intentionally **not a terminal**. It explains and demonstrates common Bash syntax, special parameters, quoting, arrays, functions, conditionals, builtins, and shell options without pretending to be a full shell.
+Bash mode is intentionally **not a terminal**. It explains and demonstrates selected Bash syntax without pretending to be a full shell, a REPL, or a Linux environment. It does not execute arbitrary Bash and it does not include external Unix commands.
 
-The Bash View keeps one compact caveat visible: selected expansions only; not a full shell. Live demonstrations use small JavaScript transforms for cases the app can honestly model, such as positional parameters, quoted `"$@"`, unquoted `$@` hazards, `"$*"`, simple `set --`, simple `shift`, and simple literal array expansion.
+The Bash View keeps one compact caveat visible: selected expansions only; not a full shell. Live demonstrations use small JavaScript transforms for cases the app can honestly model, such as positional parameters, quoted `"$@"`, unquoted `$@` hazards, `"$*"`, simple `set --`, simple `shift`, simple integer arithmetic examples, and simple literal array expansion. Anatomy cards and trainer entries also cover argument behavior, quoting, parameter expansion, arrays, functions, conditionals, loops, shell options, and common gotchas.
 
 ## Bash limits
 
 Bash mode does **not**:
 
 - execute arbitrary Bash
-- launch external Unix tools
+- launch or emulate external Unix tools such as grep, awk, sed, find, xargs, cat, cut, tr, or sort
 - provide a browser terminal or fake Linux environment
 - use a WASM shell
 - inspect or mutate the real filesystem, process table, job table, shell options, or environment
 
-Reference and partial cards are still useful: they document Bash syntax and point out when a real Bash shell is required for exact behavior.
+Reference and partial cards are still useful: they document Bash syntax, distinguish analyzer support from real shell execution, and point out when a real Bash shell is required for exact behavior.
 
 ## Trainer
 
@@ -58,11 +58,11 @@ The trainer changes with the active mode.
 - Entries can be bookmarked/pinned with the heart/bookmark control.
 - Filters cover category, type, and support level. Bash defaults to showing all support levels so reference and partial Bash cards remain discoverable.
 
-Support levels are intentionally explicit:
+Support levels are intentionally explicit and mode-specific:
 
 - **live** — the app has a useful live demonstration.
 - **partial** — the app can explain the syntax or part of the behavior, but not fully execute it.
-- **reference-only** — informational syntax card for behavior that requires a real shell.
+- **reference** — informational syntax card for behavior that requires a real sed or Bash implementation.
 - **external** — behavior depends on real external shell/OS state such as files, processes, jobs, or terminals.
 
 ## Ordered Changelog
@@ -134,3 +134,10 @@ Support levels are intentionally explicit:
 - Expanded the Bash Ism Trainer substantially across special parameters, quoting, parameter expansion, variables, arrays, functions, conditionals, loops, builtins, shell options, and redirection/reference syntax.
 - Defaulted Bash trainer support filtering to all support levels so useful partial/reference cards are easy to discover.
 - Updated this README to describe sed mode, Bash mode, local usage, Bash limits, trainer behavior, and the current changelog.
+
+### PR #12 — Polish Bash analyzer cards and tighten anatomy recognition
+
+- Added authored Bash Anatomy details and concept-specific examples in place of generic support-level filler.
+- Tightened Bash loop recognition so incomplete fragments such as `while` and broken fragments such as `while done` are shown as incomplete/broken syntax instead of valid loop shapes.
+- Distinguished arithmetic expansion `$(( ... ))` from the arithmetic command `(( ... ))`, including a tiny safe integer demonstration for numeric expressions.
+- Added smoke-test coverage for Bash card quality, malformed loop handling, arithmetic cards, README Bash documentation, and filler-phrase regression checks.

@@ -1385,6 +1385,18 @@
             sections.push('$' + index + ' expands to ' + (args[index - 1] !== undefined ? args[index - 1] : '(unset)') + '.');
           });
         }
+        const arithmeticExpansions = Array.from(expression.matchAll(/\$\(\(([\s\S]*?)\)\)/g));
+        arithmeticExpansions.forEach(match => {
+          const result = evaluateSimpleBashIntegerArithmetic(match[1].trim());
+          if (result.ok) {
+            demonstrated = true;
+            sections.push(match[0] + ' uses integer arithmetic and expands to ' + result.value + '.');
+          }
+        });
+        if (/(?<!\$)\(\([\s\S]*?\)\)/.test(expression)) {
+          demonstrated = true;
+          sections.push('(( ... )) is an arithmetic command: it can change variables or set command status, but it does not substitute text.');
+        }
         if (arrayValues) {
           demonstrated = true;
           sections.push('arr has ' + arrayValues.length + ' element(s): ' + arrayValues.map(quoteForView).join(', '));
@@ -1460,67 +1472,262 @@
       }
 
       function collectBashChunks(expression, chunks, warnings) {
+        collectBashLoopChunks(expression, chunks, warnings);
         const tokenRules = [
-          { regex: /"\$@"/g, label: '"$@"', title: 'Quoted all arguments', explanation: 'Expands each positional parameter as a separate word.', warning: '"$@" preserves argument boundaries.', support: 'live' },
-          { regex: /(?<![\"])\$@(?![A-Za-z0-9_])/g, label: '$@', title: 'Unquoted all arguments', explanation: 'Expands positional parameters unquoted.', warning: 'Unquoted $@ is usually unsafe because word splitting and globbing can change arguments.', support: 'live', warnInMessages: true },
-          { regex: /"\$\*"/g, label: '"$*"', title: 'Quoted joined arguments', explanation: 'Expands positional parameters as one joined word.', warning: '"$*" joins positional parameters into one word when quoted.', support: 'live' },
-          { regex: /(?<![\"])\$\*(?![A-Za-z0-9_])/g, label: '$*', title: 'Unquoted joined arguments', explanation: 'Expands positional parameters unquoted after joining.', warning: 'Unquoted $* is subject to word splitting and globbing.', support: 'live', warnInMessages: true },
-          { regex: /\$#/g, label: '$#', title: 'Argument count', explanation: 'Number of positional parameters.', support: 'live' },
-          { regex: /\$\?/g, label: '$?', title: 'Previous status', explanation: 'Exit status of the previous command.', warning: '$? changes after almost every command.', support: 'partial' },
-          { regex: /\$\$/g, label: '$$', title: 'Shell PID concept', explanation: 'Process ID concept for the current shell.', warning: '$$ has caveats in subshell contexts.', support: 'partial' },
-          { regex: /\$!/g, label: '$!', title: 'Background PID concept', explanation: 'PID of the most recent background pipeline.', warning: 'Needs a real shell job table.', support: 'partial' },
-          { regex: /\$_/g, label: '$_', title: 'Last argument concept', explanation: 'Context-sensitive last argument value.', warning: '$_ is volatile and slippery.', support: 'partial' },
-          { regex: /\$-/g, label: '$-', title: 'Shell option flags', explanation: 'Current shell option flags.', support: 'partial' },
-          { regex: /\$0|\$[1-9][0-9]?/g, label: null, title: 'Positional parameter', explanation: 'Names one positional parameter by number.', support: 'live' },
-          { regex: /\$BASHPID/g, label: '$BASHPID', title: 'Bash PID variable', explanation: 'Bash process ID variable for real shell state.', support: 'partial' },
-          { regex: /\$\{[A-Za-z_][A-Za-z0-9_]*(?::[-=?+][^}]*)?\}|\$\{#[A-Za-z_][A-Za-z0-9_]*\}|\$\{[A-Za-z_][A-Za-z0-9_]*[#%]{1,2}[^}]+\}|\$\{[A-Za-z_][A-Za-z0-9_]*\/{1,2}[^}]+\}|\$\{[A-Za-z_][A-Za-z0-9_]*\^\^\}|\$\{[A-Za-z_][A-Za-z0-9_]*,,\}|\$\{![A-Za-z_][A-Za-z0-9_]*[*@]?\}|\$\{[0-9]+\}/g, label: null, title: 'Parameter expansion', explanation: 'Braced Bash parameter expansion syntax.', support: 'partial' },
-          { regex: /set\s+--/g, label: 'set --', title: 'Replace positional parameters', explanation: 'Replaces the current positional parameter list.', support: 'live' },
-          { regex: /\bshift(?:\s+[0-9]+)?\b/g, label: null, title: 'Shift positional parameters', explanation: 'Discards leading positional parameters.', support: 'live' },
-          { regex: /(?:function\s+\w+|\w+\s*\(\))\s*\{/g, label: null, title: 'Function definition', explanation: 'Defines a Bash function body.', support: 'partial' },
-          { regex: /\blocal\b/g, label: 'local', title: 'Function-local variable', explanation: 'Declares a variable local to a Bash function.', support: 'partial' },
-          { regex: /\breturn\b/g, label: 'return', title: 'Function return', explanation: 'Returns from a function with a status.', support: 'partial' },
-          { regex: /\[\[[\s\S]*?\]\]/g, label: null, title: 'Bash conditional', explanation: 'Bash [[ ... ]] conditional expression.', warning: 'Conditional evaluation is not executed here.', support: 'partial' },
-          { regex: /\(\([\s\S]*?\)\)|\$\(\([\s\S]*?\)\)/g, label: null, title: 'Arithmetic context', explanation: 'Bash integer arithmetic context or expansion.', support: 'partial' },
-          { regex: /for\s+[\s\S]*?done|while\s+[\s\S]*?done|until\s+[\s\S]*?done/g, label: null, title: 'Loop shape', explanation: 'Bash loop syntax shape.', support: 'reference' },
-          { regex: /case\s+[\s\S]*?esac/g, label: null, title: 'Case statement', explanation: 'Bash case pattern dispatch syntax.', support: 'reference' },
-          { regex: /\b\w+=\([^)]*\)/g, label: null, title: 'Indexed array', explanation: 'Simple indexed array assignment.', support: 'live' },
-          { regex: /"\$\{arr\[@\]\}"/g, label: '"${arr[@]}"', title: 'Array elements', explanation: 'Quoted array-at expands elements as separate words.', support: 'live' },
-          { regex: /"\$\{arr\[\*\]\}"/g, label: '"${arr[*]}"', title: 'Joined array elements', explanation: 'Quoted array-star joins elements into one word.', support: 'live' },
-          { regex: /\b(declare(?:\s+-[A-Za-z]+)?|readonly|export|unset|read(?:\s+-r(?:\s+-a)?)?|mapfile|readarray|printf|echo|type|help|command|builtin|source|eval|exec|trap|getopts|wait|jobs|bg|fg|disown|shopt(?:\s+-s\s+(?:nullglob|failglob|dotglob|globstar|extglob|nocasematch|lastpipe|checkwinsize|histappend|autocd))?|set\s+-(?:[eux]|o\s+pipefail))\b/g, label: null, title: 'Bash builtin/reference', explanation: 'Recognized Bash builtin or shell behavior switch.', support: 'reference' },
-          { regex: /(?:^|\s)(?:[0-9]?>|[0-9]?>>|[0-9]?<|[0-9]>&[0-9]|&>|<<\w+|<<<|<\([^)]*\))/g, label: null, title: 'Redirection shape', explanation: 'Bash redirection or process-substitution syntax shape.', support: 'reference' },
-          { regex: /'[^']*'/g, label: null, title: 'Single quotes', explanation: 'Single quotes preserve literal text until the next single quote.', support: 'live' },
-          { regex: /"(?:\\.|[^"])*"/g, label: null, title: 'Double quotes', explanation: 'Double quotes group text while still allowing parameter expansion in real Bash.', support: 'live' }
+          { regex: /"\$@"/g, label: '"$@"', title: 'Quoted all arguments', explanation: 'Quoted "$@" expands each positional parameter as its own word, preserving empty arguments and spaces.', support: 'live', detail: { what: 'Inside double quotes, "$@" is the safe forwarding form: each positional parameter remains a separate argument.', here: 'This snippet asks Bash to pass every current argument through without flattening them together.', example: 'args: one "two words" three\nprintf \'<%s>\\n\' "$@"\nprints:\n<one>\n<two words>\n<three>', mistake: 'Replacing "$@" with $@ loses protection from word splitting and pathname expansion.' } },
+          { regex: /(?<!["])\$@(?![A-Za-z0-9_])/g, label: '$@', title: 'Unquoted all arguments', explanation: 'Unquoted $@ expands positional parameters and then leaves the result exposed to splitting and globbing.', warning: 'Unquoted $@ is usually unsafe because word splitting and globbing can change arguments.', support: 'live', warnInMessages: true, detail: { what: '$@ names all positional parameters, but without quotes it is not a reliable argument-preserving form.', here: 'The demo shows the words after a simple splitting pass so the hazard is visible.', example: 'args: one "two words" three\nprintf \'<%s>\\n\' $@\nmay become:\n<one>\n<two>\n<words>\n<three>', mistake: 'Use "$@" when forwarding arguments unless you deliberately want another round of splitting.' } },
+          { regex: /"\$\*"/g, label: '"$*"', title: 'Quoted joined arguments', explanation: 'Quoted "$*" joins all positional parameters into one word.', support: 'live', detail: { what: 'Inside double quotes, "$*" uses the first character of IFS as the separator and produces one joined argument.', here: 'The input arguments are flattened into one displayed word.', example: 'args: one "two words" three\nprintf \'<%s>\\n\' "$*"\nprints:\n<one two words three>', mistake: '"$*" is not the same as "$@"; it intentionally removes argument boundaries.' } },
+          { regex: /(?<!["])\$\*(?![A-Za-z0-9_])/g, label: '$*', title: 'Unquoted joined arguments', explanation: 'Unquoted $* joins positional parameters, then the unquoted result can split again.', warning: 'Unquoted $* is subject to word splitting and globbing.', support: 'live', warnInMessages: true, detail: { what: '$* represents all positional parameters as a joined list; unquoted use then exposes the text to more shell splitting.', here: 'The analyzer shows why this is rarely the form you want for argument forwarding.', example: 'args: one "two words" three\nprintf \'<%s>\\n\' $*\nmay become separate words again.', mistake: 'Use "$@" for safe forwarding; use "$*" only when one joined string is the goal.' } },
+          { regex: /\$#/g, label: '$#', title: 'Argument count', explanation: '$# expands to the number of positional parameters.', support: 'live', detail: { what: '$# is the argc-style count for the current positional parameters.', here: 'The demo input supplies the positional parameter list used for the count.', example: 'args: one "two words" three\nprintf \'%s\\n\' "$#"\nprints:\n3' } },
+          { regex: /\$BASHPID/g, label: '$BASHPID', title: 'Bash PID variable', explanation: '$BASHPID is Bash\'s current process ID variable.', support: 'partial', detail: { what: '$BASHPID expands to the process ID of the current Bash process, including contexts where $$ can be surprising.', here: 'This is shell process state, so the browser explains it rather than inventing a PID.', example: 'printf \'%s\\n\' "$BASHPID"', mistake: 'Do not use this demo as evidence of a real process ID; no Bash process is running here.' } },
+          { regex: /\$\?/g, label: '$?', title: 'Previous status', explanation: '$? expands to the previous command\'s exit status.', support: 'partial', detail: { what: '$? is overwritten after almost every command and test.', here: 'The analyzer can identify the parameter, but only a real shell knows the prior command status.', example: 'some_command\nprintf \'status=%s\\n\' "$?"', mistake: 'Save $? immediately if you need it; another command changes it.' } },
+          { regex: /\$\$/g, label: '$$', title: 'Shell PID concept', explanation: '$$ is the process ID associated with the shell context.', support: 'partial', detail: { what: '$$ is traditional shell PID syntax, with Bash-specific caveats around subshells.', here: 'The app describes the syntax without creating a fake process.', example: 'printf \'pid=%s\\n\' "$$"', mistake: 'For Bash\'s current process in tricky subshell cases, $BASHPID is often clearer.' } },
+          { regex: /\$!/g, label: '$!', title: 'Background PID concept', explanation: '$! expands to the most recent background pipeline PID.', support: 'partial', detail: { what: '$! is meaningful after starting a background job with &.', here: 'There is no browser job table, so this is reference behavior only.', example: 'long_task &\nprintf \'background pid=%s\\n\' "$!"', mistake: '$! is empty or stale if no relevant background job was just started.' } },
+          { regex: /\$_/g, label: '$_', title: 'Last argument concept', explanation: '$_ is a context-sensitive last-argument value.', support: 'partial', detail: { what: 'In Bash, $_ often expands to the last argument of the previous simple command, but it also has startup and environment quirks.', here: 'The analyzer names the construct and avoids pretending there is command history.', example: 'printf \'%s\\n\' first second\nprintf \'last=%s\\n\' "$_"', mistake: 'Treat $_ as volatile; it changes as commands run.' } },
+          { regex: /\$-/g, label: '$-', title: 'Shell option flags', explanation: '$- expands to the current single-letter shell option flags.', support: 'partial', detail: { what: '$- reports flags such as e, u, x, or interactive-related options in a real Bash session.', here: 'Actual flags depend on real shell state, so this card is explanatory.', example: 'printf \'flags=%s\\n\' "$-"' } },
+          { regex: /\$0|\$[1-9][0-9]?|\$\{[0-9]+\}/g, label: null, title: 'Positional parameter', explanation: 'Numbered positional parameters select one argument by index.', support: 'live', detailForMatch: detailForPositionalParameter },
+          { regex: /\$\{[A-Za-z_][A-Za-z0-9_]*(?::[-=?+][^}]*)?\}|\$\{#[A-Za-z_][A-Za-z0-9_]*\}|\$\{[A-Za-z_][A-Za-z0-9_]*[#%]{1,2}[^}]+\}|\$\{[A-Za-z_][A-Za-z0-9_]*\/{1,2}[^}]+\}|\$\{[A-Za-z_][A-Za-z0-9_]*\^\^\}|\$\{[A-Za-z_][A-Za-z0-9_]*,,\}|\$\{![A-Za-z_][A-Za-z0-9_]*[*@]?\}/g, label: null, title: 'Parameter expansion', explanation: 'Braced Bash parameter expansion syntax.', support: 'partial', detailForMatch: detailForParameterExpansion },
+          { regex: /\$\(\([\s\S]*?\)\)/g, label: null, title: 'Arithmetic expansion', explanation: 'Arithmetic expansion evaluates integer arithmetic and substitutes the result as text.', support: 'partial', detailForMatch: detailForArithmeticExpansion },
+          { regex: /(?<!\$)\(\([\s\S]*?\)\)/g, label: null, title: 'Arithmetic command', explanation: 'The (( ... )) command evaluates arithmetic for side effects or command status.', support: 'partial', detailForMatch: detailForArithmeticCommand },
+          { regex: /set\s+--/g, label: 'set --', title: 'Replace positional parameters', explanation: 'set -- replaces the current positional parameter list.', support: 'live', detail: { what: 'set -- assigns a new $1, $2, ... list without treating later words as shell options.', here: 'The demo understands a simple set -- form so argument examples can be tried locally.', example: 'set -- one "two words"\nprintf \'<%s>\\n\' "$@"\nprints two arguments.' } },
+          { regex: /\bshift(?:\s+[0-9]+)?\b/g, label: null, title: 'Shift positional parameters', explanation: 'shift discards leading positional parameters.', support: 'live', detail: { what: 'shift moves $2 into $1, $3 into $2, and so on; shift N discards N arguments.', here: 'The demo models simple numeric shifts against the demo argument list.', example: 'args: one "two words" three\nshift\nprintf \'<%s>\\n\' "$@"\nprints:\n<two words>\n<three>' } },
+          { regex: /function\s+\w+\s*\{/g, label: null, title: 'Function definition', explanation: 'function name { ...; } defines a Bash function body.', support: 'partial', detail: { what: 'The function keyword introduces a named Bash function; commands inside the braces run only when the function is called.', here: 'The analyzer recognizes the definition shape but does not call the function.', example: 'function greet {\n    printf \'hi\\n\'\n}', mistake: 'Defining a function is not the same as executing its body.' } },
+          { regex: /\w+\s*\(\)\s*\{/g, label: null, title: 'Function definition', explanation: 'name() { ...; } defines a Bash function body.', support: 'partial', detail: { what: 'The POSIX-style name() form defines a shell function; Bash accepts it and many scripts prefer it.', here: 'The card marks the function header without executing the body.', example: 'greet() {\n    local name=${1:-world}\n    printf \'hi %s\\n\' "$name"\n}', mistake: 'Remember separators: commands before } need a newline or semicolon.' } },
+          { regex: /\blocal\b(?:\s+[A-Za-z_][A-Za-z0-9_]*(?:=\$\{1:-[^}]+\})?)?/g, label: null, title: 'Function-local variable', explanation: 'local declares names scoped to the current Bash function.', support: 'partial', detailForMatch: detailForLocal },
+          { regex: /\breturn\b/g, label: 'return', title: 'Function return', explanation: 'return exits a function with a status.', support: 'partial', detail: { what: 'return is for function or sourced-script status, not for printing a value.', here: 'The app describes the control-flow meaning only.', example: 'check() {\n    return 0\n}', mistake: 'Use printf or variable assignment for data; return carries a numeric status.' } },
+          { regex: /\[\[[\s\S]*?\]\]/g, label: null, title: 'Bash conditional', explanation: '[[ ... ]] is Bash\'s conditional expression syntax.', support: 'partial', detailForMatch: detailForConditional },
+          { regex: /case\s+[\s\S]*?esac/g, label: null, title: 'Case statement', explanation: 'case dispatches one word against shell patterns.', support: 'reference', detail: { what: 'case word in ... esac selects the first matching pattern arm.', here: 'The analyzer recognizes the complete case block but does not run pattern dispatch.', example: 'case $word in\n    yes|y) echo ok ;;\n    *) echo no ;;\nesac', mistake: 'Each arm normally ends with ;;, ;&, or ;;& before the next pattern.' } },
+          { regex: /\bbreak\b/g, label: 'break', title: 'Break loop', explanation: 'break exits the nearest enclosing loop.', support: 'reference', detail: { what: 'break leaves a for, while, until, or select loop early.', here: 'This only has meaning when a real enclosing loop executes.', example: 'while :; do\n    break\ndone' } },
+          { regex: /\bcontinue\b/g, label: 'continue', title: 'Continue loop', explanation: 'continue skips to the next loop iteration.', support: 'reference', detail: { what: 'continue stops the current iteration and asks the loop to test or advance again.', here: 'The analyzer identifies the control word without executing a loop.', example: 'for name in "$@"; do\n    continue\ndone' } },
+          { regex: /\b\w+=\([^)]*\)/g, label: null, title: 'Indexed array', explanation: 'name=(...) assigns an indexed Bash array.', support: 'live', detail: { what: 'Parenthesized assignment creates array elements; quoted words stay single elements.', here: 'The demo can inspect a simple arr=(...) literal.', example: 'arr=(one "two words")\nprintf \'<%s>\\n\' "${arr[@]}"\nprints:\n<one>\n<two words>', mistake: 'Do not expect arr=(one two words) to make two elements; it makes three.' } },
+          { regex: /\b\w+\[[^\]]+\]=[^\s;]+/g, label: null, title: 'Array element assignment', explanation: 'name[index]=value assigns one array element.', support: 'partial', detailForMatch: detailForArrayElement },
+          { regex: /"\$\{arr\[@\]\}"/g, label: '"${arr[@]}"', title: 'Array elements', explanation: 'Quoted array @ expands each element as its own word.', support: 'live', detail: { what: '"${arr[@]}" is the array equivalent of "$@": every element remains separate.', here: 'When arr=(...) is present, the demo shows the separate elements.', example: 'arr=(one "two words")\nprintf \'<%s>\\n\' "${arr[@]}"\nprints:\n<one>\n<two words>', mistake: 'Forgetting the quotes allows each element to be split again.' } },
+          { regex: /"\$\{arr\[\*\]\}"/g, label: '"${arr[*]}"', title: 'Joined array elements', explanation: 'Quoted array * joins elements into one word.', support: 'live', detail: { what: '"${arr[*]}" joins all array elements using the first character of IFS.', here: 'The demo shows one joined word for a simple arr=(...) literal.', example: 'arr=(one "two words")\nprintf \'<%s>\\n\' "${arr[*]}"\nprints:\n<one two words>', mistake: 'Use "${arr[@]}" when callers need the original element boundaries.' } },
+          { regex: /\$\{#arr\[@\]\}/g, label: '${#arr[@]}', title: 'Array length', explanation: '${#arr[@]} expands to the number of set array elements.', support: 'partial', detail: { what: 'For arrays, # with [@] counts elements rather than characters.', here: 'This card is explanatory unless paired with a simple demo array.', example: 'arr=(one "two words")\nprintf \'%s\\n\' "${#arr[@]}"\nprints:\n2' } },
+          { regex: /\$\{!arr\[@\]\}/g, label: '${!arr[@]}', title: 'Array indices', explanation: '${!arr[@]} expands to the set indices of the array.', support: 'partial', detail: { what: 'The ! prefix asks for names/indices instead of values.', here: 'Useful for iterating sparse arrays without assuming 0..N.', example: 'arr=([2]=two [5]=five)\nprintf \'%s\\n\' "${!arr[@]}"' } },
+          { regex: /\b\w+\+=\([^)]*\)/g, label: null, title: 'Append to array', explanation: 'name+=(...) appends elements to an indexed array.', support: 'partial', detail: { what: 'The += array assignment keeps existing elements and adds new ones at the end.', here: 'The analyzer recognizes the append syntax; it does not maintain mutable array state.', example: 'arr=(one)\narr+=("two words")\nprintf \'<%s>\\n\' "${arr[@]}"' } },
+          { regex: /\bdeclare\s+-A\s+\w+/g, label: null, title: 'Associative array declaration', explanation: 'declare -A creates an associative array.', support: 'reference', detail: { what: 'Associative arrays use string keys instead of numeric indices.', here: 'The syntax is recognized, but map storage and lookup are not executed.', example: 'declare -A map\nmap[key]=value\nprintf \'%s\\n\' "${map[key]}"', mistake: 'declare -A must happen before treating a Bash array as associative.' } },
+          { regex: /\b(?:printf|echo|type|help|command|builtin|source|eval|exec|trap|getopts|wait|jobs|bg|fg|disown|readonly|export|unset|read(?:\s+-r(?:\s+-a)?)?|mapfile|readarray)\b/g, label: null, title: 'Bash builtin/reference', explanation: 'Recognized Bash builtin syntax.', support: 'reference', detailForMatch: detailForBuiltin },
+          { regex: /\bset\s+-(?:[eux]|o\s+pipefail)\b/g, label: null, title: 'Shell option', explanation: 'set toggles shell behavior flags.', support: 'reference', detailForMatch: detailForSetOption },
+          { regex: /\bshopt\s+-s\s+(?:nullglob|failglob|dotglob|globstar|extglob|nocasematch)\b/g, label: null, title: 'Shell option', explanation: 'shopt -s enables Bash-specific shell options.', support: 'reference', detailForMatch: detailForShoptOption },
+          { regex: /(?:^|\s)(?:[0-9]?>|[0-9]?>>|[0-9]?<|[0-9]>&[0-9]|&>|<<\w+|<<<|<\([^)]*\))/g, label: null, title: 'Redirection shape', explanation: 'Bash redirection or process-substitution syntax.', support: 'reference', detail: { what: 'Redirection changes where command input or output goes in a real shell.', here: 'This app does not read, write, or create process streams; the card is syntax-only.', example: 'printf \'hi\\n\' > file', mistake: 'No files are touched by this browser demo.' } },
+          { regex: /'[^']*'/g, label: null, title: 'Single quotes', explanation: 'Single quotes preserve literal text until the next single quote.', support: 'live', detail: { what: 'Everything inside single quotes is literal text; parameter expansion and backslash escapes do not run there.', here: 'The mini word parser treats a quoted span as one word.', example: "printf '%s\\n' '$HOME stays literal'", mistake: 'A single quote cannot appear inside single quotes; close, escape, and reopen if needed.' } },
+          { regex: /"(?:\\.|[^"])*"/g, label: null, title: 'Double quotes', explanation: 'Double quotes group text while still allowing selected expansions.', support: 'live', detail: { what: 'Double quotes keep spaces inside one word while still allowing parameter expansion in real Bash.', here: 'The demo uses this to preserve arguments such as "two words".', example: 'name="two words"\nprintf \'<%s>\\n\' "$name"\nprints:\n<two words>', mistake: 'Leaving a variable unquoted can trigger word splitting and globbing.' } },
+          { regex: /\\ /g, label: '\\ ', title: 'Escaped space', explanation: 'A backslash can make a space part of the current word.', support: 'live', detail: { what: 'Outside quotes, backslash-space keeps a literal space instead of ending the word.', here: 'The mini parser treats one\\ word as one argument.', example: 'printf \'<%s>\\n\' one\\ word\nprints one argument: <one word>' } },
+          { regex: /(?:^|\s)([A-Za-z_][A-Za-z0-9_]*)\b(?!\s*=)/g, label: null, title: 'Bare word', explanation: 'Unquoted words are subject to Bash parsing rules.', support: 'reference', detailForMatch: detailForBareWord }
         ];
         tokenRules.forEach(rule => {
           let match;
           rule.regex.lastIndex = 0;
           while ((match = rule.regex.exec(expression)) !== null) {
-            const text = rule.label || match[0];
-            addBashChunk(chunks, text, rule.title, rule.explanation, rule.warning || '', rule.support);
+            const text = rule.label || match[0].trim() || match[0];
+            const detail = rule.detailForMatch ? rule.detailForMatch(match, expression) : rule.detail;
+            addBashChunk(chunks, text, rule.title, rule.explanation, rule.warning || '', rule.support, detail);
             if (rule.warning && rule.warnInMessages) warnings.push(rule.warning);
             if (match[0].length === 0) rule.regex.lastIndex += 1;
           }
         });
       }
 
-      function addBashChunk(chunks, text, title, explanation, warning, support) {
-        const detail = {
-          what: explanation,
-          here: 'Recognized in this Bash analyzer/demonstrator. Support level: ' + supportLabel(support || 'partial') + '.',
-          example: bashTinyExample(text, title),
-          mistake: warning || 'This card explains the syntax shape and support level.'
-        };
-        addChunk(chunks, text, title, explanation, detail);
+      function addBashChunk(chunks, text, title, explanation, warning, support, detail) {
+        const builtDetail = Object.assign({}, detail || {});
+        if (!builtDetail.what && explanation) builtDetail.what = explanation;
+        if (warning && !builtDetail.mistake) builtDetail.mistake = warning;
+        addChunk(chunks, text, title, explanation, builtDetail);
       }
 
-      function bashTinyExample(text, title) {
-        if (text === '"$@"') return 'With args one "two words" three, it stays three words.';
-        if (text === '$@') return 'The argument two words may split into two words when unquoted.';
-        if (text === '"$*"') return 'With three args, it becomes one joined word.';
-        if (title === 'Indexed array') return 'arr=(one "two words") has two elements.';
-        if (title === 'Single quotes') return "'two words' is one literal word in the demo args parser.";
-        if (title === 'Double quotes') return '"two words" is one word in the demo args parser.';
-        return 'Use the demo input format: args: one "two words" three';
+      function collectBashLoopChunks(expression, chunks, warnings) {
+        const trimmed = expression.trim();
+        const completeWhile = /\bwhile\s+([\s\S]+?)\s*;?\s*do\s+([\s\S]+?)\s*;?\s*done\b/g;
+        const completeUntil = /\buntil\s+([\s\S]+?)\s*;?\s*do\s+([\s\S]+?)\s*;?\s*done\b/g;
+        const completeForIn = /\bfor\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s+in\s+([\s\S]+?))?\s*;?\s*do\s+([\s\S]+?)\s*;?\s*done\b/g;
+        const completeForC = /\bfor\s*\(\(\s*[^;]+\s*;\s*[^;]+\s*;\s*[^)]*\)\)\s*;?\s*do\s+([\s\S]+?)\s*;?\s*done\b/g;
+        addLoopMatches(completeWhile, expression, chunks, 'While loop', 'while repeats while its test command succeeds.', { what: 'A complete while loop has a test command, a do section, a body, and done.', here: 'This snippet has the required while ... do ... done order.', example: 'while [[ condition ]]; do\n    ...\ndone', mistake: 'while is not a loop by itself; do introduces the body.' });
+        addLoopMatches(completeUntil, expression, chunks, 'Until loop', 'until repeats while its test command fails.', { what: 'A complete until loop has a test command, then do, then a body, then done.', here: 'This snippet has the required until ... do ... done order.', example: 'until [[ condition ]]; do\n    ...\ndone' });
+        addLoopMatches(completeForC, expression, chunks, 'C-style for loop', 'for (( init; test; step )) loops with arithmetic clauses.', { what: 'The C-style Bash for form contains arithmetic init, test, and step clauses before the do body.', here: 'The three semicolon-separated arithmetic clauses are present.', example: 'for ((i=0; i<3; i++)); do\n    printf \'%s\\n\' "$i"\ndone', mistake: 'This is loop syntax, not arithmetic expansion; it does not substitute text.' });
+        addLoopMatches(completeForIn, expression, chunks, 'For loop', 'for iterates a name over words, then runs the do body.', { what: 'A complete for loop needs a variable name and a do ... done body. The in list is optional; without it Bash iterates over "$@".', here: 'This snippet includes the loop variable and body markers.', example: 'for name in "$@"; do\n    printf \'%s\\n\' "$name"\ndone' });
+        if (/^while\b/.test(trimmed) && !hasCompleteLoop(trimmed, 'while')) {
+          const hasDone = /\bdone\b/.test(trimmed);
+          const hasDo = /\bdo\b/.test(trimmed);
+          addBrokenLoopChunk(chunks, trimmed, hasDone && !hasDo ? 'Broken while loop' : 'Incomplete while loop', hasDone && !hasDo ? 'This has the loop opener and closer words, but it is missing the do section.' : '`while` starts a loop, but Bash still needs a test command, do, a body, and done.', hasDone && !hasDo ? 'while :; do\n    echo tick\ndone' : 'while [[ condition ]]; do\n    ...\ndone', hasDone && !hasDo ? '`done` closes a loop; it does not replace `do`.' : '`while` is not a loop by itself.', warnings);
+        }
+        if (/^until\b/.test(trimmed) && !hasCompleteLoop(trimmed, 'until')) {
+          addBrokenLoopChunk(chunks, trimmed, /\bdone\b/.test(trimmed) && !/\bdo\b/.test(trimmed) ? 'Broken until loop' : 'Incomplete until loop', '`until` repeats while a test command fails. It still needs do, a body, and done.', 'until [[ condition ]]; do\n    ...\ndone', '`done` closes a loop; it does not replace `do`.', warnings);
+        }
+        if (/^for\b/.test(trimmed) && !hasCompleteLoop(trimmed, 'for')) {
+          addBrokenLoopChunk(chunks, trimmed, /\bdone\b/.test(trimmed) && !/\bdo\b/.test(trimmed) ? 'Broken for loop' : 'Incomplete for loop', '`for` starts a loop, but Bash needs a loop variable/list form and a do ... done body.', 'for name in "$@"; do\n    printf \'%s\\n\' "$name"\ndone', 'The word `done` cannot stand in for the missing loop header and do body.', warnings);
+        }
+      }
+
+      function addLoopMatches(regex, expression, chunks, title, explanation, detail) {
+        let match;
+        regex.lastIndex = 0;
+        while ((match = regex.exec(expression)) !== null) {
+          addBashChunk(chunks, match[0], title, explanation, '', 'reference', detail);
+          if (match[0].length === 0) regex.lastIndex += 1;
+        }
+      }
+
+      function hasCompleteLoop(text, kind) {
+        if (kind === 'while') return /\bwhile\s+([\s\S]+?)\s*;?\s*do\s+([\s\S]+?)\s*;?\s*done\b/.test(text);
+        if (kind === 'until') return /\buntil\s+([\s\S]+?)\s*;?\s*do\s+([\s\S]+?)\s*;?\s*done\b/.test(text);
+        return /\bfor\s*\(\(\s*[^;]+\s*;\s*[^;]+\s*;\s*[^)]*\)\)\s*;?\s*do\s+[\s\S]+?\s*;?\s*done\b/.test(text) || /\bfor\s+[A-Za-z_][A-Za-z0-9_]*(?:\s+in\s+[\s\S]+?)?\s*;?\s*do\s+[\s\S]+?\s*;?\s*done\b/.test(text);
+      }
+
+      function addBrokenLoopChunk(chunks, text, title, what, example, mistake, warnings) {
+        addBashChunk(chunks, text, title, what, mistake, 'reference', { what, example, mistake });
+        warnings.push(title + ': ' + mistake);
+      }
+
+      function detailForPositionalParameter(match) {
+        const text = match[0];
+        if (text === '$0') return { what: '$0 names the shell or script as invoked, not the first user argument.', here: 'The demo identifies the parameter but does not simulate a script filename.', example: 'printf \'script=%s\\n\' "$0"', mistake: 'The first positional argument is $1, not $0.' };
+        if (/^\$\{[0-9]+\}$/.test(text)) return { what: 'Braces are required for positional parameters with two or more digits, such as ${10}.', here: 'Without braces, $10 means ${1} followed by a literal 0.', example: 'printf \'tenth=%s\\n\' "${10}"', mistake: '$10 is not the same syntax as ${10}.' };
+        return { what: text + ' selects one positional parameter by number.', here: 'The live demo reads this from the demo args list.', example: 'args: one "two words" three\nprintf \'%s\\n\' "' + text + '"', mistake: 'Quote positional parameters unless you deliberately want splitting and globbing.' };
+      }
+
+      function detailForParameterExpansion(match) {
+        const text = match[0];
+        if (/^\$\{[A-Za-z_][A-Za-z0-9_]*:-/.test(text)) return { what: '${var:-default} uses the default text when var is unset or empty, without assigning it.', here: 'This is a safe way to supply a fallback for one expansion.', example: 'name=\nprintf \'%s\\n\' "${name:-world}"\nprints:\nworld', mistake: ':- does not change the variable; := is the assigning form.' };
+        if (/^\$\{[A-Za-z_][A-Za-z0-9_]*:=/.test(text)) return { what: '${var:=default} expands a default and assigns it when var is unset or empty.', here: 'This is an assignment-like expansion, not just a fallback.', example: 'name=\nprintf \'%s\\n\' "${name:=world}"\n# name is now world', mistake: 'Avoid := when a read-only default is intended.' };
+        if (/^\$\{[A-Za-z_][A-Za-z0-9_]*:\?/.test(text)) return { what: '${var:?message} stops a real shell with an error if var is unset or empty.', here: 'The browser flags the syntax but does not abort a shell script.', example: ': "${required:?missing required value}"', mistake: 'Use this for required inputs, not optional defaults.' };
+        if (/^\$\{[A-Za-z_][A-Za-z0-9_]*:\+/.test(text)) return { what: '${var:+alternate} expands alternate only when var is set and non-empty.', here: 'It is useful for conditionally adding text.', example: 'debug=1\nprintf \'%s\\n\' "${debug:+--verbose}"\nprints:\n--verbose' };
+        if (/^\$\{#[A-Za-z_]/.test(text)) return { what: '${#var} expands to the string length of var.', here: 'For scalar variables this counts characters in the expanded value.', example: 'name=hello\nprintf \'%s\\n\' "${#name}"\nprints:\n5' };
+        if (/^\$\{[A-Za-z_][A-Za-z0-9_]*##/.test(text)) return { what: '${var##pattern} removes the longest matching prefix pattern.', here: 'Often used to keep the basename-like tail of a path string.', example: 'path=/tmp/demo/file.txt\nprintf \'%s\\n\' "${path##*/}"\nprints:\nfile.txt', mistake: '# is shortest prefix removal; ## is longest prefix removal.' };
+        if (/^\$\{[A-Za-z_][A-Za-z0-9_]*#/.test(text)) return { what: '${var#pattern} removes the shortest matching prefix pattern.', here: 'It trims from the front using shell pattern syntax.', example: 'path=/tmp/demo/file.txt\nprintf \'%s\\n\' "${path#/tmp/}"\nprints:\ndemo/file.txt' };
+        if (/^\$\{[A-Za-z_][A-Za-z0-9_]*%%/.test(text)) return { what: '${var%%pattern} removes the longest matching suffix pattern.', here: 'It trims from the end using shell pattern syntax.', example: 'file=archive.tar.gz\nprintf \'%s\\n\' "${file%%.*}"\nprints:\narchive', mistake: '% is shortest suffix removal; %% is longest suffix removal.' };
+        if (/^\$\{[A-Za-z_][A-Za-z0-9_]*%/.test(text)) return { what: '${var%pattern} removes the shortest matching suffix pattern.', here: 'Useful for stripping a known extension-like ending.', example: 'file=movie.mkv\nprintf \'%s\\n\' "${file%.mkv}"\nprints:\nmovie' };
+        if (/^\$\{[A-Za-z_][A-Za-z0-9_]*\/\//.test(text)) return { what: '${var//pat/repl} replaces all matches of pat in the variable value.', here: 'This is Bash parameter expansion, not sed.', example: 'name=banana\nprintf \'%s\\n\' "${name//a/o}"\nprints:\nbonono', mistake: 'The pattern is a shell pattern, not a regular expression.' };
+        if (/^\$\{[A-Za-z_][A-Za-z0-9_]*\//.test(text)) return { what: '${var/pat/repl} replaces the first matching pattern in the variable value.', here: 'Only the first match is replaced.', example: 'name=banana\nprintf \'%s\\n\' "${name/a/o}"\nprints:\nbonana' };
+        if (/\^\^\}$/.test(text)) return { what: '${name^^} uppercases the expanded value in Bash.', here: 'Case conversion is identified but not executed as a shell.', example: 'name=Ada\nprintf \'%s\\n\' "${name^^}"\nprints:\nADA' };
+        if (/,,\}$/.test(text)) return { what: '${name,,} lowercases the expanded value in Bash.', here: 'Case conversion is identified but not executed as a shell.', example: 'name=Ada\nprintf \'%s\\n\' "${name,,}"\nprints:\nada' };
+        if (/^\$\{![A-Za-z_]/.test(text)) return { what: '${!name} forms ask Bash for indirect values or matching names/indices, depending on the suffix.', here: 'The card identifies indirection/name expansion syntax without shell state.', example: 'prefix_var=ok\nname=prefix_var\nprintf \'%s\\n\' "${!name}"' };
+        return { what: '${var} is the braced form of parameter expansion.', here: 'Braces make the variable name boundary explicit.', example: 'name=world\nprintf \'hello %s\\n\' "${name}"', mistake: 'Use braces when text follows the variable name, e.g. ${name}_suffix.' };
+      }
+
+      function detailForArithmeticExpansion(match) {
+        const text = match[0];
+        const inner = text.slice(3, -2).trim();
+        const result = evaluateSimpleBashIntegerArithmetic(inner);
+        return { what: '$(( expression )) evaluates Bash integer arithmetic and expands to text.', here: result.ok ? 'For this numeric expression, Bash-style integer arithmetic gives ' + result.value + '.' : 'This can be embedded inside another command; variable arithmetic is explained rather than executed here.', example: 'printf \'%s\\n\' "$(( 38 / 7 ))"\nprints:\n5', mistake: 'Do not blur $(( ... )) with the (( ... )) command form; this one substitutes text.' };
+      }
+
+      function detailForArithmeticCommand(match) {
+        const text = match[0];
+        const inner = text.slice(2, -2).trim();
+        const increment = /\+\+|--/.test(inner);
+        return { what: '(( expression )) is a command form: it evaluates arithmetic for side effects and/or command status.', here: increment ? 'This expression changes a variable value; it does not insert text into the command line.' : 'As a command, a nonzero arithmetic result is success and zero is failure.', example: increment ? 'count=3\n(( count++ ))\n# count is now 4' : '(( count > 3 ))\n# status is success when the comparison is nonzero', mistake: 'Use $(( ... )) when you need the arithmetic result as text.' };
+      }
+
+      function evaluateSimpleBashIntegerArithmetic(source) {
+        if (!/^[0-9+\-*/%()\s]+$/.test(source)) return { ok: false };
+        const tokens = source.match(/\d+|[()+\-*/%]/g) || [];
+        let index = 0;
+        function parseExpression() {
+          let value = parseTerm();
+          while (tokens[index] === '+' || tokens[index] === '-') {
+            const op = tokens[index++];
+            const right = parseTerm();
+            value = op === '+' ? value + right : value - right;
+          }
+          return value;
+        }
+        function parseTerm() {
+          let value = parseFactor();
+          while (tokens[index] === '*' || tokens[index] === '/' || tokens[index] === '%') {
+            const op = tokens[index++];
+            const right = parseFactor();
+            if (right === 0) throw new Error('division by zero');
+            if (op === '*') value *= right;
+            if (op === '/') value = Math.trunc(value / right);
+            if (op === '%') value %= right;
+          }
+          return value;
+        }
+        function parseFactor() {
+          if (tokens[index] === '+') { index += 1; return parseFactor(); }
+          if (tokens[index] === '-') { index += 1; return -parseFactor(); }
+          if (tokens[index] === '(') {
+            index += 1;
+            const value = parseExpression();
+            if (tokens[index] !== ')') throw new Error('missing )');
+            index += 1;
+            return value;
+          }
+          if (!/^\d+$/.test(tokens[index] || '')) throw new Error('number expected');
+          return Number(tokens[index++]);
+        }
+        try {
+          const value = parseExpression();
+          if (index !== tokens.length || !Number.isFinite(value)) return { ok: false };
+          return { ok: true, value };
+        } catch (error) {
+          return { ok: false };
+        }
+      }
+
+      function detailForConditional(match) {
+        const text = match[0];
+        if (/\[\[\s+-z\s+/.test(text)) return { what: '[[ -z value ]] tests whether the expanded string is empty.', here: 'The condition is recognized but not executed.', example: '[[ -z $name ]] && printf \'missing name\\n\'' };
+        if (/\[\[\s+-n\s+/.test(text)) return { what: '[[ -n value ]] tests whether the expanded string is non-empty.', here: 'The condition is recognized but not executed.', example: '[[ -n $name ]] && printf \'hello\\n\'' };
+        if (/\[\[\s+-v\s+/.test(text)) return { what: '[[ -v name ]] tests whether a variable is set.', here: 'The analyzer identifies the Bash-specific variable-existence test.', example: '[[ -v name ]] && printf \'set\\n\'' };
+        if (/=~/.test(text)) return { what: '[[ string =~ regex ]] matches a string against a Bash regular expression.', here: 'Regex matching is not run here; this is a syntax explanation.', example: '[[ $name =~ ^[A-Z] ]]' };
+        if (/==/.test(text)) return { what: '[[ string == pattern ]] compares with shell pattern matching on the right-hand side.', here: 'The condition shape is recognized without running pattern matching.', example: '[[ $name == pattern* ]]', mistake: 'In [[ ]], an unquoted right side of == is a pattern, not a plain literal.' };
+        if (/\s-[efdx]\s+/.test(text)) return { what: '[[ -f path ]] and related primaries test filesystem properties.', here: 'No filesystem is inspected in this browser demo.', example: '[[ -f $path ]] && printf \'file exists\\n\'' };
+        if (/\s-(eq|ne|lt|le|gt|ge)\s/.test(text)) return { what: '[[ a -eq b ]] performs an integer comparison.', here: 'The arithmetic comparison syntax is identified only.', example: '[[ $a -eq $b ]]' };
+        return { what: '[[ ... ]] is Bash conditional syntax with safer parsing than single-bracket test.', here: 'The app explains the condition; it does not evaluate shell state.', example: '[[ -n $name ]] && printf \'name is set\\n\'', mistake: '[[ is Bash syntax, not portable /bin/sh syntax.' };
+      }
+
+      function detailForLocal(match) {
+        const text = match[0];
+        if (/\$\{1:-/.test(text)) return { what: 'local name=${1:-world} declares a function-local variable with a default from the first argument.', here: 'This common function pattern keeps the variable scoped to the function.', example: 'greet() {\n    local name=${1:-world}\n    printf \'hi %s\\n\' "$name"\n}' };
+        return { what: 'local limits variable scope to the current Bash function.', here: 'It is valid inside Bash functions, not at top level in portable sh.', example: 'demo() {\n    local value=42\n}' };
+      }
+
+      function detailForArrayElement(match) {
+        const text = match[0];
+        if (/\bmap\[/.test(text)) return { what: 'map[key]=value assigns an associative-array element after declare -A map.', here: 'The key is text inside brackets, not a positional argument.', example: 'declare -A map\nmap[key]=value' };
+        return { what: 'arr[0]=value assigns one indexed-array element.', here: 'The index chooses the element slot.', example: 'arr[0]=value\nprintf \'%s\\n\' "${arr[0]}"' };
+      }
+
+      function detailForBuiltin(match) {
+        const word = match[0].trim();
+        const details = {
+          printf: { what: 'printf formats text using a format string and arguments.', here: 'This demo supports a few printf-shaped examples for expansions, but not arbitrary commands.', example: 'printf \'%s\\n\' "hello"' },
+          echo: { what: 'echo writes its arguments, but its option and escape behavior varies between shells.', here: 'The analyzer recognizes it as a Bash builtin reference.', example: 'echo hello', mistake: 'Prefer printf in scripts when exact output matters.' },
+          eval: { what: 'eval parses generated text as shell code.', here: 'This app never uses or simulates eval.', example: 'eval "generated_command"', mistake: 'eval is a sharp tool; avoid it unless you fully control the input.' },
+          source: { what: 'source reads commands into the current shell environment.', here: 'No files are loaded in this browser app.', example: 'source ./settings.bash' }
+        };
+        return details[word] || { what: word + ' is a Bash builtin or shell-control word recognized for reference.', here: 'The app does not run arbitrary builtins or external commands.', example: word + ' ...' };
+      }
+
+      function detailForSetOption(match) {
+        const text = match[0].trim();
+        if (/set\s+-e\b/.test(text)) return { what: 'set -e asks Bash to exit after many unhandled command failures.', here: 'The analyzer identifies the option; no script is executed.', example: 'set -e', mistake: 'set -e has exceptions around conditionals, pipelines, and compound commands.' };
+        if (/set\s+-u\b/.test(text)) return { what: 'set -u treats expansion of unset variables as an error.', here: 'No shell exits here; the card explains the script option.', example: 'set -u', mistake: 'Use defaults such as ${name:-} when unset variables are allowed.' };
+        if (/pipefail/.test(text)) return { what: 'set -o pipefail makes a pipeline fail if any command in it fails.', here: 'Pipelines are not executed in this app.', example: 'set -o pipefail', mistake: 'pipefail is Bash behavior, not universal /bin/sh behavior.' };
+        if (/set\s+-x\b/.test(text)) return { what: 'set -x prints command traces as Bash executes them.', here: 'There is no command trace because this is not a shell executor.', example: 'set -x' };
+        return { what: 'set changes shell options in a real Bash session.', here: 'This is recognized as option syntax only.' };
+      }
+
+      function detailForShoptOption(match) {
+        const text = match[0].trim();
+        const option = (text.match(/\b(nullglob|failglob|dotglob|globstar|extglob|nocasematch)\b/) || [])[1] || 'option';
+        const what = {
+          nullglob: 'nullglob makes unmatched globs expand to nothing.',
+          failglob: 'failglob makes unmatched globs produce an expansion error.',
+          dotglob: 'dotglob lets globs include dotfiles.',
+          globstar: 'globstar gives ** recursive matching behavior in supported contexts.',
+          extglob: 'extglob enables extended glob operators such as @(a|b).',
+          nocasematch: 'nocasematch makes [[ ]] and case matching ignore letter case.'
+        }[option];
+        return { what, here: 'Globbing and matching options are identified but not executed against a filesystem.', example: 'shopt -s ' + option, mistake: option === 'failglob' ? 'failglob can turn an unmatched pattern into a script-stopping error.' : '' };
+      }
+
+      function detailForBareWord(match) {
+        const word = (match[1] || match[0]).trim();
+        if (/^(while|until|for|do|done|then|fi|esac|case|function|local|return|break|continue)$/.test(word)) return { what: 'Reserved or control words only have their Bash meaning in the right syntax position.', here: 'Other cards describe complete constructs when enough syntax is present.' };
+        return { what: 'Unquoted bare words are ordinary command words or arguments in Bash syntax.', here: 'No external command named ' + word + ' is executed here.', mistake: 'Quote variable expansions when a value might contain spaces or glob characters.' };
       }
 
       function parseBashDemoInput(inputText) {
