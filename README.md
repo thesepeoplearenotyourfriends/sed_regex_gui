@@ -1,53 +1,99 @@
-<img width="733" height="564" alt="image" src="https://github.com/user-attachments/assets/596b8a93-f405-4bb2-b5fb-3cecfa087476" />
-<img width="1054" height="616" alt="image" src="https://github.com/user-attachments/assets/6a19b2ab-2aca-4418-b32b-3c23e32d5859" />
+# Sed Regex GUI
 
-----
+A dependency-free browser workbench for learning and testing small text-processing ideas in a single local HTML file.
 
-**"Installation"**
+## What it is
 
-just copy index.html to a local dir and open it in your browser! Or run it from github @ https://thesepeoplearenotyourfriends.github.io/sed_regex_gui/
+Sed Regex GUI is a local, single-file app that runs entirely in the browser. It currently has two modes:
 
-----
+- **sed mode** — a live sed-ish command analyzer and transformer for common `p`, `d`, and `s/pattern/replacement/flags` workflows.
+- **bash mode** — a Bash-ism analyzer/demonstrator for selected Bash syntax and expansions.
+
+The project intentionally stays small and portable: no npm, no CDN assets, no external dependencies, no WASM shell, and no bundled fake Linux environment.
+
+## Installation / running
+
+Open `index.html` directly in a browser from a local checkout or copied folder.
+
+You can also use the GitHub Pages build at:
+
+https://thesepeoplearenotyourfriends.github.io/sed_regex_gui/
+
+## Modes
+
+### sed mode
+
+Sed mode explains the anatomy of supported sed-style commands, previews matching text, and applies the supported transformation to the victim text pane. It focuses on common command shapes such as:
+
+- substitutions like `s/[0-9]\+/NUM/g`
+- print/delete commands with simple addresses
+- regex fragments and replacement-side backreferences in the Pattern Trainer
+
+Sed mode is still a browser simulator for the supported subset, not a replacement for every sed implementation or flag.
+
+### bash mode
+
+Bash mode is intentionally **not a terminal**. It explains and demonstrates common Bash syntax, special parameters, quoting, arrays, functions, conditionals, builtins, and shell options without pretending to be a full shell.
+
+The Bash View keeps one compact caveat visible: selected expansions only; not a full shell. Live demonstrations use small JavaScript transforms for cases the app can honestly model, such as positional parameters, quoted `"$@"`, unquoted `$@` hazards, `"$*"`, simple `set --`, simple `shift`, and simple literal array expansion.
+
+## Bash limits
+
+Bash mode does **not**:
+
+- execute arbitrary Bash
+- launch external Unix tools
+- provide a browser terminal or fake Linux environment
+- use a WASM shell
+- inspect or mutate the real filesystem, process table, job table, shell options, or environment
+
+Reference and partial cards are still useful: they document Bash syntax and point out when a real Bash shell is required for exact behavior.
+
+## Trainer
+
+The trainer changes with the active mode.
+
+- **Pattern Trainer** in sed mode includes command recipes, regex fragments, substitutions, cleanup examples, and portability notes.
+- **Bash Ism Trainer** in bash mode includes special parameters, quoting, parameter expansion, variables, arrays, functions, conditionals, loops, builtins, shell options, and redirection/reference syntax.
+- Entries can be bookmarked/pinned with the heart/bookmark control.
+- Filters cover category, type, and support level. Bash defaults to showing all support levels so reference and partial Bash cards remain discoverable.
+
+Support levels are intentionally explicit:
+
+- **live** — the app has a useful live demonstration.
+- **partial** — the app can explain the syntax or part of the behavior, but not fully execute it.
+- **reference-only** — informational syntax card for behavior that requires a real shell.
+- **external** — behavior depends on real external shell/OS state such as files, processes, jobs, or terminals.
 
 ## Ordered Changelog
 
-### PR #1 — Build a single-file sed regex workbench
+### PR #1 — Build a single-file sed regex GUI
 
-- Created the first self-contained `index.html` app so the workbench can run locally in any browser with no build step or dependencies.
-- Added a live sed command input, victim-text editor, and output preview for experimenting with common sed patterns.
-- Implemented parsing and explanation cards for quiet mode, line and regex addresses, address ranges, print/delete commands, and substitution commands.
-- Added colored command-anatomy chunks that synchronize with explanation cards on hover.
-- Persisted the current sed command and victim text in local storage so practice sessions survive reloads.
+- Added the initial dependency-free `index.html` browser app.
+- Added a sed command input, victim text pane, output pane, and command anatomy view.
+- Implemented the first supported sed substitution workflow.
 
-### PR #2 — Revise the app into a resizable workbench
+### PR #2 — Improve sed workbench ergonomics
 
-- Reworked the interface into a full-height workbench with separate toolbar, anatomy strip, input/output panes, and reference pane.
-- Added draggable row and column resizers so the command anatomy/reference area and input/output split can be adjusted while learning.
-- Introduced light, dark, and auto theme behavior with persisted preferences.
-- Improved responsive behavior so the workbench remains usable on smaller screens.
-- Refined pane labels, focus states, and hover affordances for a clearer learning flow.
+- Improved layout, controls, and command feedback.
+- Added stronger examples and clearer labels around victim text and output.
+- Kept the app runnable as a copied local HTML file.
 
-### PR #3 — Add the searchable Pattern Trainer
+### PR #3 — Add command history and quality-of-life behavior
 
-- Added a Pattern Trainer dialog for discovering sed commands, regex fragments, and plain-English intent examples.
-- Seeded the trainer with a searchable collection of practical recipes and snippets.
-- Added category/type filtering, support-level labeling, and result counts to make the pattern library easier to browse.
-- Implemented snippet insertion and replacement actions so selected examples can be applied directly to the command input.
-- Added pinned-pattern support with a bookmarks menu for quickly revisiting favorite recipes.
+- Added local browser persistence for recent commands and workbench state.
+- Improved reset/default behavior.
+- Tightened supported-command messaging.
 
-### PR #4 — Expand and improve Pattern Trainer recipes
+### PR #4 — Add Pattern Trainer
 
-- Expanded the trainer library with many more examples covering deletion, replacement, ranges, extraction, cleanup, validation, and text-shaping workflows.
-- Added richer metadata, tags, aliases, and placeholders so searches can match both syntax and user intent.
-- Improved snippet actions for inserting fragments at the cursor or replacing the whole command when appropriate.
-- Clarified support notes for examples that are live, partially simulated, shell-oriented, or reference-only.
-- Improved empty-state guidance to suggest useful searches when no trainer results match.
+- Added a trainer panel for discovering sed commands, recipes, and regex fragments.
+- Added searching, filtering, and insertion actions for trainer entries.
+- Added support-level metadata so live, partial, external, and reference examples can be represented honestly.
 
-### PR #5 — Grow the Pattern Trainer reference set
+### PR #5 — Expand sed recipes and reference cards
 
-- Increased the Pattern Trainer reference library toward a larger 150+ entry catalog.
-- Broadened coverage across sed addresses, substitutions, regex fragments, capture groups, anchors, character classes, and common maintenance tasks.
-- Added more external and reference-only entries for real-world sed usage that the browser simulator does not execute directly.
+- Added more sed trainer entries for substitutions, cleanup, addresses, and real-world sed usage that the browser simulator does not execute directly.
 - Improved scoring and filtering so live/partial examples are prioritized while advanced reference entries remain discoverable.
 - Added placeholder metadata to make reusable recipe variables such as patterns, replacements, and filenames easier to identify.
 
@@ -56,21 +102,35 @@ just copy index.html to a local dir and open it in your browser! Or run it from 
 - Added semantic explanation rules that translate common sed regex patterns into plain-English meanings.
 - Improved pattern and replacement explanations for anchors, digit classes, whitespace, capture groups, escaped literals, wildcards, and backreferences.
 - Added command-level summaries so users can understand what the full sed expression is intended to do, not just each token.
-- Strengthened parser feedback for malformed or unsupported sed syntax.
-- Connected trainer snippets to the explanation engine so recipe cards can display clearer meaning hints.
 
 ### PR #7 — Improve semantic sed explanations
 
-- Expanded the semantic rules for common substitutions, deletions, selections, comments, blank lines, repeated words, and line-cleanup patterns.
+- Expanded semantic rules for common substitutions, deletions, selections, comments, blank lines, repeated words, and line-cleanup patterns.
 - Made command summaries more specific by combining address, command, pattern, replacement, and flag context.
-- Improved explanation text for global replacements, print/delete behavior, quiet mode, and address-scoped commands.
-- Added more robust wording for regular-expression fragments that appear inside trainer entries and anatomy cards.
-- Reduced generic explanations in favor of intent-focused language that better answers “what will this command do?”
+- Reduced generic explanations in favor of intent-focused language.
 
 ### PR #8 — Refactor around a dialect registry
 
-- Refactored the workbench to route parsing, execution, summaries, defaults, storage keys, and trainer entries through a dialect registry.
-- Established sed as the active registered dialect while making the architecture ready for additional command or regex dialects.
-- Moved sed-specific behavior behind dialect capabilities, labels, default text, default expression, parser, executor, and trainer hooks.
-- Updated trainer entry filtering so entries can be scoped to the active dialect.
-- Renamed generic workbench storage and UI plumbing so future dialects can coexist without colliding with sed-specific state.
+- Refactored parsing, execution, summaries, defaults, storage keys, and trainer entries through a dialect registry.
+- Kept sed as the first registered dialect while preparing the frontend for additional analyzers.
+- Scoped trainer entries and UI labels to the active dialect.
+
+### PR #9 — Add dialect-switching frontend
+
+- Added a visible sed/bash dialect switch in the toolbar.
+- Added dialect-specific labels, defaults, storage, trainer titles, and empty states.
+- Preserved sed behavior while allowing new analyzer modes to share the same single-file workbench shell.
+
+### PR #10 — Add Bash analyzer/demonstrator mode
+
+- Added Bash mode as an analyzer/demonstrator rather than a shell REPL.
+- Added the first Bash parser/anatomy pass and selected live demonstrations for positional parameters, quoting, simple shifts, `set --`, and arrays.
+- Added the first Bash Ism Trainer entries with honest live/partial/reference support labels.
+
+### PR #11 — Polish Bash analyzer UX, expand Bash isms, and document current state
+
+- Removed repeated global red Bash caveats from the Anatomy pane.
+- Kept one compact Bash analyzer caveat in the Bash View while preserving specific warnings such as unquoted `$@` hazards.
+- Expanded the Bash Ism Trainer substantially across special parameters, quoting, parameter expansion, variables, arrays, functions, conditionals, loops, builtins, shell options, and redirection/reference syntax.
+- Defaulted Bash trainer support filtering to all support levels so useful partial/reference cards are easy to discover.
+- Updated this README to describe sed mode, Bash mode, local usage, Bash limits, trainer behavior, and the current changelog.
