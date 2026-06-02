@@ -170,7 +170,18 @@
       padding-left: 4px;
     }
 
-    input, textarea, button, .output {
+    .dialect-select {
+      min-width: 4.8rem;
+      padding: 8px 22px 8px 8px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .dialect-select:hover { border-color: var(--field-border); }
+
+    input, textarea, button, select, .output {
       border: 1px solid var(--field-border);
       background: var(--field);
       color: var(--ink);
@@ -188,7 +199,7 @@
 
     button:hover { border-color: var(--focus); }
 
-    input:focus, textarea:focus, button:focus-visible {
+    input:focus, textarea:focus, button:focus-visible, select:focus-visible {
       outline: 2px solid var(--focus);
       border-color: var(--focus);
     }
@@ -530,8 +541,8 @@
 <body>
   <main class="app" id="app">
     <div class="toolbar" aria-label="Command expression">
-      <label class="prompt" for="expressionInput" id="dialectPrompt">sed</label>
-      <input id="expressionInput" spellcheck="false" autocomplete="off" aria-describedby="anatomyStrip">
+      <select class="prompt dialect-select" id="dialectSelect" aria-label="Workbench mode"></select>
+      <input id="expressionInput" spellcheck="false" autocomplete="off" aria-describedby="anatomyStrip" aria-label="sed expression" placeholder="s/OLD/NEW/g">
       <button type="button" id="bookmarksToggle" aria-haspopup="menu" aria-expanded="false" title="Pinned patterns">🔖</button>
       <button type="button" id="patternsToggle" aria-haspopup="dialog" aria-expanded="false">patterns</button>
       <button type="button" id="themeToggle" aria-label="Theme mode">auto</button>
@@ -543,12 +554,12 @@
 
     <div class="io-grid" id="ioGrid">
       <section class="panel io-pane">
-        <div class="pane-title">Victim Text</div>
+        <div class="pane-title" id="inputPaneTitle">Victim Text</div>
         <textarea id="victimText" spellcheck="false"></textarea>
       </section>
       <div class="column-resizer" id="columnResizer" role="separator" aria-orientation="vertical" aria-label="Resize input and output panes"></div>
       <section class="panel io-pane">
-        <div class="pane-title">Output</div>
+        <div class="pane-title" id="outputPaneTitle">Output</div>
         <pre class="output" id="outputText" aria-live="polite"></pre>
       </section>
     </div>
@@ -557,8 +568,8 @@
 
     <section class="panel reference-pane">
       <div class="reference-head">
-        <div class="section-title">Command Anatomy</div>
-        <div class="hint">Hover a chunk or card to link syntax to meaning.</div>
+        <div class="section-title" id="anatomyTitle">Command Anatomy</div>
+        <div class="hint" id="anatomyHint">Hover a chunk or card to link syntax to meaning.</div>
       </div>
       <div class="reference-scroll">
         <div id="messages"></div>
@@ -575,7 +586,7 @@
       <div class="trainer-head">
         <div>
           <div class="trainer-title" id="trainerTitle">Pattern Trainer</div>
-          <div class="trainer-subtitle">Search sed commands, regex fragments, or plain-English intent.</div>
+          <div class="trainer-subtitle" id="trainerSubtitle">Search sed commands, regex fragments, or plain-English intent.</div>
         </div>
         <button type="button" id="trainerClose" aria-label="Close Pattern Trainer">close</button>
       </div>
@@ -595,7 +606,7 @@
         </div>
         <div class="trainer-meta">
           <span id="trainerCount"></span>
-          <span>Click a snippet or action to insert it.</span>
+          <span id="trainerMetaText">Click a snippet or action to insert it.</span>
         </div>
         <div class="trainer-results" id="trainerResults"></div>
       </div>
@@ -915,7 +926,25 @@
         sed: {
           id: 'sed',
           label: 'sed',
-          inputLabel: 'sed',
+          ui: {
+            promptLabel: 'sed',
+            expressionAriaLabel: 'sed expression',
+            expressionPlaceholder: 's/OLD/NEW/g',
+            inputPaneTitle: 'Victim Text',
+            outputPaneTitle: 'Output',
+            anatomyTitle: 'Command Anatomy',
+            anatomyHint: 'Hover a chunk or card to link syntax to meaning.',
+            trainerButtonLabel: 'patterns',
+            trainerTitle: 'Pattern Trainer',
+            trainerSubtitle: 'Search sed commands, regex fragments, or plain-English intent.',
+            trainerSearchPlaceholder: 'search commands, patterns, or intent...',
+            trainerMetaText: 'Click a snippet or action to insert it.',
+            trainerEntryNounPlural: 'patterns',
+            trainerEmptyText: 'No matches yet. Try intent words like “delete blank”, “swap words”, “replace digits”, syntax like “[0-9]”, or change the support filter.',
+            bookmarksEmptyText: 'No pinned patterns yet. Open patterns and click ♡ on recipes you use often.',
+            insertCommandLabel: 'Use command',
+            insertFragmentLabel: 'Insert fragment'
+          },
           defaultExpression: DEFAULT_SED_EXPRESSION,
           defaultVictimText: DEFAULT_SED_TEXT,
           capabilities: {
@@ -951,24 +980,32 @@
       const trainerSupportFilter = document.getElementById('trainerSupportFilter');
       const trainerResults = document.getElementById('trainerResults');
       const trainerCount = document.getElementById('trainerCount');
-      const dialectPrompt = document.getElementById('dialectPrompt');
+      const trainerTitle = document.getElementById('trainerTitle');
+      const trainerSubtitle = document.getElementById('trainerSubtitle');
+      const trainerMetaText = document.getElementById('trainerMetaText');
+      const dialectSelect = document.getElementById('dialectSelect');
       const expressionInput = document.getElementById('expressionInput');
       const victimText = document.getElementById('victimText');
       const outputText = document.getElementById('outputText');
+      const inputPaneTitle = document.getElementById('inputPaneTitle');
+      const outputPaneTitle = document.getElementById('outputPaneTitle');
+      const anatomyTitle = document.getElementById('anatomyTitle');
+      const anatomyHint = document.getElementById('anatomyHint');
       const anatomyStrip = document.getElementById('anatomyStrip');
       const cards = document.getElementById('cards');
       const commandSummary = document.getElementById('commandSummary');
       const messages = document.getElementById('messages');
 
-      dialectPrompt.textContent = activeDialect.inputLabel || activeDialect.label;
-      expressionInput.value = localStorage.getItem(dialectStorageKey('expression')) || activeDialect.defaultExpression;
-      victimText.value = localStorage.getItem(dialectStorageKey('inputText')) || activeDialect.defaultVictimText;
-      let commandHistory = loadCommandHistory();
-      let pinnedPatternIds = loadPinnedPatternIds();
+      let commandHistory = [];
+      let pinnedPatternIds = [];
 
+      populateDialectSelect();
+      loadDialectState();
+      applyDialectUi();
       applySavedTheme();
       applySavedSplits();
 
+      dialectSelect.addEventListener('change', () => switchDialect(dialectSelect.value));
       themeToggle.addEventListener('click', cycleTheme);
       bookmarksToggle.addEventListener('click', toggleBookmarksMenu);
       bookmarksMenu.addEventListener('click', handleBookmarkClick);
@@ -1007,6 +1044,74 @@
 
       function dialectStorageKey(kind) {
         return STORAGE_PREFIX + '.' + kind + '.' + activeDialectId;
+      }
+
+      function getDialectUi() {
+        return activeDialect.ui || {};
+      }
+
+      function populateDialectSelect() {
+        dialectSelect.innerHTML = '';
+        Object.keys(DIALECTS).forEach(id => {
+          const dialect = DIALECTS[id];
+          const ui = dialect.ui || {};
+          const option = document.createElement('option');
+          option.value = id;
+          option.textContent = ui.promptLabel || dialect.label || id;
+          dialectSelect.appendChild(option);
+        });
+        dialectSelect.value = activeDialectId;
+      }
+
+      function loadDialectState() {
+        const storedExpression = localStorage.getItem(dialectStorageKey('expression'));
+        const storedInputText = localStorage.getItem(dialectStorageKey('inputText'));
+        expressionInput.value = storedExpression !== null ? storedExpression : (activeDialect.defaultExpression || '');
+        victimText.value = storedInputText !== null ? storedInputText : (activeDialect.defaultVictimText || '');
+        commandHistory = loadCommandHistory();
+        pinnedPatternIds = loadPinnedPatternIds();
+      }
+
+      function saveDialectState() {
+        localStorage.setItem(dialectStorageKey('expression'), expressionInput.value);
+        localStorage.setItem(dialectStorageKey('inputText'), victimText.value);
+        localStorage.setItem(dialectStorageKey('history'), JSON.stringify(commandHistory));
+        localStorage.setItem(dialectStorageKey('bookmarks'), JSON.stringify(pinnedPatternIds));
+      }
+
+      function switchDialect(nextId) {
+        if (!DIALECTS[nextId] || nextId === activeDialectId) {
+          dialectSelect.value = activeDialectId;
+          return;
+        }
+
+        saveDialectState();
+        activeDialectId = nextId;
+        activeDialect = DIALECTS[activeDialectId];
+        loadDialectState();
+        applyDialectUi();
+        populateTrainerFilters();
+        renderTrainerResults();
+        renderBookmarksMenu();
+        closeBookmarksMenu();
+        update();
+      }
+
+      function applyDialectUi() {
+        const ui = getDialectUi();
+        dialectSelect.value = activeDialectId;
+        expressionInput.setAttribute('aria-label', ui.expressionAriaLabel || (activeDialect.label || activeDialectId) + ' expression');
+        expressionInput.placeholder = ui.expressionPlaceholder || '';
+        inputPaneTitle.textContent = ui.inputPaneTitle || 'Input';
+        outputPaneTitle.textContent = ui.outputPaneTitle || 'Output';
+        anatomyTitle.textContent = ui.anatomyTitle || 'Reference';
+        anatomyHint.textContent = ui.anatomyHint || '';
+        patternsToggle.textContent = ui.trainerButtonLabel || 'trainer';
+        trainerTitle.textContent = ui.trainerTitle || 'Trainer';
+        trainerSubtitle.textContent = ui.trainerSubtitle || '';
+        trainerSearch.placeholder = ui.trainerSearchPlaceholder || 'search...';
+        trainerMetaText.textContent = ui.trainerMetaText || 'Click an entry to insert it.';
+        trainerClose.setAttribute('aria-label', 'Close ' + (ui.trainerTitle || 'Trainer'));
       }
 
       function getTrainerEntries() {
@@ -1156,12 +1261,13 @@
             return a.entry.title.localeCompare(b.entry.title);
           });
 
-        trainerCount.textContent = matches.length + ' of ' + getTrainerEntries().length + ' patterns';
+        const ui = getDialectUi();
+        trainerCount.textContent = matches.length + ' of ' + getTrainerEntries().length + ' ' + (ui.trainerEntryNounPlural || 'entries');
         trainerResults.innerHTML = '';
         if (!matches.length) {
           const note = document.createElement('div');
           note.className = 'empty-note';
-          note.textContent = 'No matches yet. Try intent words like “delete blank”, “swap words”, “replace digits”, syntax like “[0-9]”, or change the support filter.';
+          note.textContent = getDialectUi().trainerEmptyText || 'No matches yet. Try another search or change the support filter.';
           trainerResults.appendChild(note);
           return;
         }
@@ -1261,7 +1367,7 @@
         const button = document.createElement('button');
         button.type = 'button';
         button.dataset.patternId = entry.id;
-        button.textContent = entry.insertMode === 'replace-command' ? 'Use command' : 'Insert fragment';
+        button.textContent = trainerActionLabel(entry);
         const badge = document.createElement('span');
         badge.className = 'support-badge';
         badge.textContent = supportLabel(entry.support);
@@ -1285,7 +1391,15 @@
       }
 
 
+      function trainerActionLabel(entry) {
+        if (entry.actionLabel) return entry.actionLabel;
+        const ui = getDialectUi();
+        if (entry.insertMode === 'replace-command') return ui.insertCommandLabel || 'Insert';
+        return ui.insertFragmentLabel || 'Insert';
+      }
+
       function trainerSemanticHint(snippet) {
+        if (!activeDialect.explain) return '';
         const explained = activeDialect.explain(snippet);
         if (!explained.ok || !explained.command) return '';
         if (explained.command.type === 's') return 'the pattern is ' + describePattern(explained.command.pattern);
@@ -1364,7 +1478,7 @@
         if (!pinnedEntries.length) {
           const note = document.createElement('div');
           note.className = 'empty-note';
-          note.textContent = 'No pinned patterns yet. Open patterns and click ♡ on recipes you use often.';
+          note.textContent = getDialectUi().bookmarksEmptyText || 'No pinned entries yet. Open the trainer and pin entries you use often.';
           bookmarksMenu.appendChild(note);
           return;
         }
