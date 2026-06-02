@@ -5,7 +5,7 @@
 
 **"Installation"**
 
-just copy index.html to a local dir and open it in your browser!
+just copy index.html to a local dir and open it in your browser! Or run it from github @ https://thesepeoplearenotyourfriends.github.io/sed_regex_gui/
 
 ----
 
