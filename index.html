@@ -619,6 +619,8 @@
 
       const DEFAULT_SED_TEXT = 'alpha 123\nbeta 456\nSTART\nitem 789\nitem 101112\nEND\ngamma 999\nfoo foo foo';
       const DEFAULT_SED_EXPRESSION = 's/\\([0-9]\\+\\)/NUM/g';
+      const DEFAULT_BASH_INPUT = 'args: one "two words" three';
+      const DEFAULT_BASH_EXPRESSION = "printf '<%s>\n' \"$@\"";
       const STORAGE_PREFIX = 'patternWorkbench';
       const STORAGE_THEME = STORAGE_PREFIX + '.settings.theme';
       const STORAGE_ROW_SPLIT = STORAGE_PREFIX + '.settings.rowSplit';
@@ -922,6 +924,664 @@
         patternEntry('word-boundary-ish-start', 'Word start-ish', '\\(^\\|[^A-Za-z0-9_]\\)', 'fragment', 'Regex fragments', 'Basic-regex-ish boundary before a word.', ['word boundary', 'start word'], 'insert-at-cursor', '', 'supported'),
         patternEntry('escaped-parenthesis-literal', 'Literal parenthesis', '[()]', 'fragment', 'Regex fragments', 'Matches a literal parenthesis using a character class.', ['literal parenthesis', 'paren', 'bracket class'], 'insert-at-cursor', '', 'supported')
       ];
+
+      const BASH_TRAINER_ENTRIES = [
+        {
+                "id": "bash-quoted-at",
+                "title": "\"$@\"",
+                "snippet": "printf '<%s>\\n' \"$@\"",
+                "type": "special parameter",
+                "category": "Special parameters",
+                "description": "Expands all positional parameters as separate words, preserving argument boundaries.",
+                "tags": [
+                        "args",
+                        "argv",
+                        "quoted",
+                        "safe",
+                        "boundaries"
+                ],
+                "insertMode": "replace-command",
+                "notes": "Preserves each argument as its own word. This demo is not a shell execution.",
+                "dialect": "bash",
+                "support": "live",
+                "requires": [],
+                "exampleInput": "args: one \"two words\" three",
+                "exampleOutput": "$# = 3\n$1 = one\n$2 = two words\n$3 = three\n\n\"$@\" expands as separate words:\n<one>\n<two words>\n<three>",
+                "placeholders": []
+        },
+        {
+                "id": "bash-unquoted-at",
+                "title": "$@",
+                "snippet": "printf '<%s>\\n' $@",
+                "type": "special parameter",
+                "category": "Special parameters",
+                "description": "Expands all positional parameters unquoted; word splitting and globbing can alter arguments.",
+                "tags": [
+                        "args",
+                        "unquoted",
+                        "unsafe",
+                        "splitting",
+                        "globbing"
+                ],
+                "insertMode": "replace-command",
+                "notes": "Unquoted $@ is usually unsafe because word splitting and globbing can change arguments.",
+                "dialect": "bash",
+                "support": "live",
+                "requires": [],
+                "exampleInput": "args: one \"two words\" three",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-quoted-star",
+                "title": "\"$*\"",
+                "snippet": "printf '<%s>\\n' \"$*\"",
+                "type": "special parameter",
+                "category": "Special parameters",
+                "description": "Expands all positional parameters as one joined word when quoted.",
+                "tags": [
+                        "args",
+                        "joined",
+                        "ifs",
+                        "quoted"
+                ],
+                "insertMode": "replace-command",
+                "notes": "Quoted \"$*\" joins positional parameters into one word.",
+                "dialect": "bash",
+                "support": "live",
+                "requires": [],
+                "exampleInput": "args: one \"two words\" three",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-count",
+                "title": "$#",
+                "snippet": "printf '%s\\n' \"$#\"",
+                "type": "special parameter",
+                "category": "Special parameters",
+                "description": "Expands to the number of positional parameters.",
+                "tags": [
+                        "count",
+                        "argc",
+                        "args"
+                ],
+                "insertMode": "replace-command",
+                "notes": "",
+                "dialect": "bash",
+                "support": "live",
+                "requires": [],
+                "exampleInput": "args: one \"two words\" three",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-positional",
+                "title": "$1 / $2",
+                "snippet": "printf 'first=%s second=%s\\n' \"$1\" \"$2\"",
+                "type": "special parameter",
+                "category": "Special parameters",
+                "description": "Positional parameters name individual arguments by number.",
+                "tags": [
+                        "positional",
+                        "parameters",
+                        "args"
+                ],
+                "insertMode": "replace-command",
+                "notes": "",
+                "dialect": "bash",
+                "support": "live",
+                "requires": [],
+                "exampleInput": "args: one \"two words\" three",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-status",
+                "title": "$?",
+                "snippet": "printf 'status=%s\\n' \"$?\"",
+                "type": "special parameter",
+                "category": "Shell state",
+                "description": "Previous command exit status. It changes after almost every command.",
+                "tags": [
+                        "exit",
+                        "status",
+                        "previous command"
+                ],
+                "insertMode": "replace-command",
+                "notes": "$? is volatile; a real shell is required for real command status.",
+                "dialect": "bash",
+                "support": "partial",
+                "requires": [],
+                "exampleInput": "args: one \"two words\" three",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-pid",
+                "title": "$$",
+                "snippet": "printf 'pid=%s\\n' \"$$\"",
+                "type": "special parameter",
+                "category": "Shell state",
+                "description": "Conceptual current shell PID.",
+                "tags": [
+                        "pid",
+                        "process",
+                        "shell"
+                ],
+                "insertMode": "replace-command",
+                "notes": "$$ has subshell caveats; this app only explains the concept.",
+                "dialect": "bash",
+                "support": "partial",
+                "requires": [],
+                "exampleInput": "",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-background-pid",
+                "title": "$!",
+                "snippet": "printf 'bg=%s\\n' \"$!\"",
+                "type": "special parameter",
+                "category": "Shell state",
+                "description": "PID of the most recent background pipeline.",
+                "tags": [
+                        "background",
+                        "pid",
+                        "job"
+                ],
+                "insertMode": "replace-command",
+                "notes": "Needs a real Bash job table; this app does not launch background jobs.",
+                "dialect": "bash",
+                "support": "partial",
+                "requires": [],
+                "exampleInput": "",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-underscore",
+                "title": "$_",
+                "snippet": "printf 'last=%s\\n' \"$_\"",
+                "type": "special parameter",
+                "category": "Shell state",
+                "description": "Last argument concept; useful but context-sensitive and slippery.",
+                "tags": [
+                        "last argument",
+                        "volatile",
+                        "context"
+                ],
+                "insertMode": "replace-command",
+                "notes": "$_ is context-sensitive and changes as commands run.",
+                "dialect": "bash",
+                "support": "partial",
+                "requires": [],
+                "exampleInput": "",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-option-flags",
+                "title": "$-",
+                "snippet": "printf 'flags=%s\\n' \"$-\"",
+                "type": "special parameter",
+                "category": "Shell state",
+                "description": "Current shell option flags.",
+                "tags": [
+                        "options",
+                        "flags"
+                ],
+                "insertMode": "replace-command",
+                "notes": "Actual flags depend on a real shell session.",
+                "dialect": "bash",
+                "support": "partial",
+                "requires": [],
+                "exampleInput": "",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-set-args",
+                "title": "set --",
+                "snippet": "set -- alpha \"beta gamma\"; printf '<%s>\\n' \"$@\"",
+                "type": "builtin",
+                "category": "Positional parameters",
+                "description": "Replaces the positional parameter list.",
+                "tags": [
+                        "set",
+                        "args",
+                        "replace"
+                ],
+                "insertMode": "replace-command",
+                "notes": "This demo can parse a simple set -- list; full set options are out of scope.",
+                "dialect": "bash",
+                "support": "live",
+                "requires": [],
+                "exampleInput": "args: one \"two words\" three",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-shift",
+                "title": "shift",
+                "snippet": "shift; printf '<%s>\\n' \"$@\"",
+                "type": "builtin",
+                "category": "Positional parameters",
+                "description": "Discards leading positional parameters.",
+                "tags": [
+                        "shift",
+                        "args",
+                        "discard"
+                ],
+                "insertMode": "replace-command",
+                "notes": "This demo models a simple shift by one.",
+                "dialect": "bash",
+                "support": "live",
+                "requires": [],
+                "exampleInput": "args: one \"two words\" three",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-function",
+                "title": "name() { ...; }",
+                "snippet": "greet() { local name=$1; printf 'hi %s\\n' \"$name\"; }",
+                "type": "syntax",
+                "category": "Functions",
+                "description": "Defines a Bash function body.",
+                "tags": [
+                        "function",
+                        "definition",
+                        "name"
+                ],
+                "insertMode": "replace-command",
+                "notes": "Function execution, scope, and return status need a real Bash shell.",
+                "dialect": "bash",
+                "support": "partial",
+                "requires": [],
+                "exampleInput": "",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-local",
+                "title": "local",
+                "snippet": "demo() { local name=$1; printf '%s\\n' \"$name\"; }",
+                "type": "builtin",
+                "category": "Functions",
+                "description": "Declares a function-local variable.",
+                "tags": [
+                        "function",
+                        "scope",
+                        "variable"
+                ],
+                "insertMode": "replace-command",
+                "notes": "local only has meaning inside a Bash function.",
+                "dialect": "bash",
+                "support": "partial",
+                "requires": [],
+                "exampleInput": "",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-return",
+                "title": "return",
+                "snippet": "demo() { return 2; }",
+                "type": "builtin",
+                "category": "Functions",
+                "description": "Returns from a function with an optional status.",
+                "tags": [
+                        "function",
+                        "status",
+                        "exit"
+                ],
+                "insertMode": "replace-command",
+                "notes": "Return status propagation needs real Bash execution.",
+                "dialect": "bash",
+                "support": "partial",
+                "requires": [],
+                "exampleInput": "",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-bracket-cond",
+                "title": "[[ ... ]]",
+                "snippet": "[[ \"$1\" == two* ]]",
+                "type": "conditional",
+                "category": "Conditionals",
+                "description": "Bash conditional expression syntax.",
+                "tags": [
+                        "conditional",
+                        "test",
+                        "pattern"
+                ],
+                "insertMode": "replace-command",
+                "notes": "Condition evaluation is only explained here, not executed.",
+                "dialect": "bash",
+                "support": "partial",
+                "requires": [],
+                "exampleInput": "args: one \"two words\" three",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-arithmetic",
+                "title": "(( ... ))",
+                "snippet": "(( count += 1 ))",
+                "type": "arithmetic",
+                "category": "Arithmetic",
+                "description": "Arithmetic context for integer expressions.",
+                "tags": [
+                        "math",
+                        "integer",
+                        "arithmetic"
+                ],
+                "insertMode": "replace-command",
+                "notes": "This app does not execute shell arithmetic state.",
+                "dialect": "bash",
+                "support": "partial",
+                "requires": [],
+                "exampleInput": "",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-array",
+                "title": "arr=(one \"two words\")",
+                "snippet": "arr=(one \"two words\"); printf '<%s>\\n' \"${arr[@]}\"",
+                "type": "array",
+                "category": "Arrays",
+                "description": "Creates a simple indexed array.",
+                "tags": [
+                        "array",
+                        "indexed",
+                        "words"
+                ],
+                "insertMode": "replace-command",
+                "notes": "This demo parses simple literal arrays only.",
+                "dialect": "bash",
+                "support": "live",
+                "requires": [],
+                "exampleInput": "",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-array-at",
+                "title": "\"${arr[@]}\"",
+                "snippet": "arr=(one \"two words\"); printf '<%s>\\n' \"${arr[@]}\"",
+                "type": "array",
+                "category": "Arrays",
+                "description": "Expands array elements as separate words when quoted.",
+                "tags": [
+                        "array",
+                        "quoted",
+                        "boundaries"
+                ],
+                "insertMode": "replace-command",
+                "notes": "Quoted ${arr[@]} preserves element boundaries.",
+                "dialect": "bash",
+                "support": "live",
+                "requires": [],
+                "exampleInput": "",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-array-star",
+                "title": "\"${arr[*]}\"",
+                "snippet": "arr=(one \"two words\"); printf '<%s>\\n' \"${arr[*]}\"",
+                "type": "array",
+                "category": "Arrays",
+                "description": "Expands array elements as one joined word when quoted.",
+                "tags": [
+                        "array",
+                        "joined",
+                        "ifs"
+                ],
+                "insertMode": "replace-command",
+                "notes": "Quoted ${arr[*]} joins elements into one word.",
+                "dialect": "bash",
+                "support": "live",
+                "requires": [],
+                "exampleInput": "",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-assoc-array",
+                "title": "declare -A",
+                "snippet": "declare -A colors=([sky]=blue)",
+                "type": "array",
+                "category": "Arrays",
+                "description": "Associative array declaration reference.",
+                "tags": [
+                        "associative",
+                        "array",
+                        "map"
+                ],
+                "insertMode": "replace-command",
+                "notes": "Reference-only: associative arrays need real Bash to evaluate.",
+                "dialect": "bash",
+                "support": "reference",
+                "requires": [],
+                "exampleInput": "",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-export",
+                "title": "export",
+                "snippet": "export NAME=value",
+                "type": "builtin",
+                "category": "Environment",
+                "description": "Marks variables for the environment of child processes.",
+                "tags": [
+                        "environment",
+                        "variable",
+                        "child"
+                ],
+                "insertMode": "replace-command",
+                "notes": "Reference-only: this app has no process environment to mutate.",
+                "dialect": "bash",
+                "support": "reference",
+                "requires": [],
+                "exampleInput": "",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-unset",
+                "title": "unset",
+                "snippet": "unset name",
+                "type": "builtin",
+                "category": "Variables",
+                "description": "Unsets a variable or function name.",
+                "tags": [
+                        "variable",
+                        "function",
+                        "remove"
+                ],
+                "insertMode": "replace-command",
+                "notes": "Reference-only: this app keeps no Bash variable namespace.",
+                "dialect": "bash",
+                "support": "reference",
+                "requires": [],
+                "exampleInput": "",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-read-r",
+                "title": "read -r",
+                "snippet": "read -r line",
+                "type": "builtin",
+                "category": "Input",
+                "description": "Reads a line without treating backslashes as escapes.",
+                "tags": [
+                        "stdin",
+                        "input",
+                        "backslash"
+                ],
+                "insertMode": "replace-command",
+                "notes": "Reference-only: stdin reading is not implemented in this demo.",
+                "dialect": "bash",
+                "support": "reference",
+                "requires": [],
+                "exampleInput": "",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-printf",
+                "title": "printf",
+                "snippet": "printf '<%s>\\n' \"$@\"",
+                "type": "builtin",
+                "category": "Output",
+                "description": "Safer, format-driven output builtin.",
+                "tags": [
+                        "output",
+                        "format",
+                        "builtin"
+                ],
+                "insertMode": "replace-command",
+                "notes": "This demo recognizes a tiny printf subset for argument expansion views.",
+                "dialect": "bash",
+                "support": "reference",
+                "requires": [],
+                "exampleInput": "args: one \"two words\" three",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-echo",
+                "title": "echo",
+                "snippet": "echo \"$@\"",
+                "type": "builtin",
+                "category": "Output",
+                "description": "Common output builtin with portability and option caveats.",
+                "tags": [
+                        "output",
+                        "caveat",
+                        "builtin"
+                ],
+                "insertMode": "replace-command",
+                "notes": "Reference-only: echo behavior differs; prefer printf for precise demos.",
+                "dialect": "bash",
+                "support": "reference",
+                "requires": [],
+                "exampleInput": "args: one \"two words\" three",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-shopt",
+                "title": "shopt",
+                "snippet": "shopt -s nullglob",
+                "type": "builtin",
+                "category": "Shell options",
+                "description": "Toggles Bash behavior switches.",
+                "tags": [
+                        "options",
+                        "behavior",
+                        "shell"
+                ],
+                "insertMode": "replace-command",
+                "notes": "Reference-only: shell options require a real Bash shell.",
+                "dialect": "bash",
+                "support": "reference",
+                "requires": [],
+                "exampleInput": "",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-nullglob",
+                "title": "shopt -s nullglob",
+                "snippet": "shopt -s nullglob",
+                "type": "builtin",
+                "category": "Shell options",
+                "description": "Makes unmatched globs expand to nothing instead of staying literal.",
+                "tags": [
+                        "glob",
+                        "option",
+                        "unmatched"
+                ],
+                "insertMode": "replace-command",
+                "notes": "Reference-only: globbing is intentionally out of scope.",
+                "dialect": "bash",
+                "support": "reference",
+                "requires": [],
+                "exampleInput": "",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-dotglob",
+                "title": "shopt -s dotglob",
+                "snippet": "shopt -s dotglob",
+                "type": "builtin",
+                "category": "Shell options",
+                "description": "Lets globs include dotfiles.",
+                "tags": [
+                        "glob",
+                        "dotfiles",
+                        "option"
+                ],
+                "insertMode": "replace-command",
+                "notes": "Reference-only: this app does not inspect files.",
+                "dialect": "bash",
+                "support": "reference",
+                "requires": [],
+                "exampleInput": "",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-globstar",
+                "title": "shopt -s globstar",
+                "snippet": "shopt -s globstar",
+                "type": "builtin",
+                "category": "Shell options",
+                "description": "Lets ** traverse directory trees in glob patterns.",
+                "tags": [
+                        "glob",
+                        "recursive",
+                        "option"
+                ],
+                "insertMode": "replace-command",
+                "notes": "Reference-only: filesystem globbing is out of scope.",
+                "dialect": "bash",
+                "support": "reference",
+                "requires": [],
+                "exampleInput": "",
+                "exampleOutput": "",
+                "placeholders": []
+        },
+        {
+                "id": "bash-nocasematch",
+                "title": "shopt -s nocasematch",
+                "snippet": "shopt -s nocasematch",
+                "type": "builtin",
+                "category": "Shell options",
+                "description": "Makes pattern matching in [[ ]] ignore case.",
+                "tags": [
+                        "conditional",
+                        "case",
+                        "option"
+                ],
+                "insertMode": "replace-command",
+                "notes": "Reference-only: conditional matching is not executed.",
+                "dialect": "bash",
+                "support": "reference",
+                "requires": [],
+                "exampleInput": "",
+                "exampleOutput": "",
+                "placeholders": []
+        }
+];
       const DIALECTS = {
         sed: {
           id: 'sed',
@@ -959,6 +1619,43 @@
           summarize: summarizeSedExpression,
           explain: explainSedExpression,
           getTrainerEntries: getSedTrainerEntries
+        },
+        bash: {
+          id: 'bash',
+          label: 'bash',
+          ui: {
+            promptLabel: 'bash',
+            expressionAriaLabel: 'bash expression',
+            expressionPlaceholder: "printf '<%s>\\n' \"$@\"",
+            inputPaneTitle: 'Demo Args / Input',
+            outputPaneTitle: 'Bash View',
+            anatomyTitle: 'Bash Anatomy',
+            anatomyHint: 'Hover a Bash chunk or card to connect syntax to meaning.',
+            trainerButtonLabel: 'isms',
+            trainerTitle: 'Bash Ism Trainer',
+            trainerSubtitle: 'Search Bash syntax, special parameters, quoting, arrays, functions, builtins, or shell behavior.',
+            trainerSearchPlaceholder: 'search "$@", arrays, functions, shopt, quoting...',
+            trainerMetaText: 'Click a Bash ism to insert it into the analyzer.',
+            trainerEntryNounPlural: 'isms',
+            trainerEmptyText: 'No Bash isms match that search.',
+            bookmarksEmptyText: 'Pin Bash isms to keep them handy.',
+            insertCommandLabel: 'Use ism',
+            insertFragmentLabel: 'Insert ism'
+          },
+          defaultExpression: DEFAULT_BASH_EXPRESSION,
+          defaultVictimText: DEFAULT_BASH_INPUT,
+          capabilities: {
+            liveExecution: false,
+            replacement: false,
+            lineAddresses: false,
+            trainer: true,
+            matchPreview: false
+          },
+          parse: parseBashExpression,
+          execute: executeBashDemo,
+          summarize: summarizeBashExpression,
+          explain: explainBashExpression,
+          getTrainerEntries: getBashTrainerEntries
         }
       };
       let activeDialectId = 'sed';
@@ -1121,6 +1818,301 @@
 
       function getSedTrainerEntries() {
         return SED_TRAINER_ENTRIES;
+      }
+
+      function getBashTrainerEntries() {
+        return BASH_TRAINER_ENTRIES;
+      }
+
+      function parseBashExpression(expression) {
+        const chunks = [];
+        const warnings = ['Bash mode is an analyzer/demonstrator. It does not execute arbitrary Bash.'];
+        const trimmed = expression.trim();
+        if (!trimmed) {
+          return { ok: true, dialect: 'bash', expression, summary: 'Type a Bash snippet to inspect common Bash isms.', chunks, cards: chunks, warnings, errors: [] };
+        }
+        collectBashChunks(trimmed, chunks, warnings);
+        if (!chunks.length) {
+          addBashChunk(chunks, trimmed, 'Bash snippet', 'This snippet is not one of the small live forms recognized by the demo engine.', 'External commands, pipelines, command substitution, redirects, and full shell behavior are intentionally out of scope.', 'reference');
+          warnings.push('Unsupported shell behavior is shown as reference only; use a real Bash shell for actual execution.');
+        }
+        return { ok: true, dialect: 'bash', expression, summary: summarizeBashExpression({ expression: trimmed, chunks }), chunks, cards: chunks, warnings: uniqueNotes(warnings), errors: [] };
+      }
+
+      function executeBashDemo(anatomy, inputText) {
+        const warnings = ['This is a Bash-ism demonstration, not a full shell execution.'];
+        const parsedInput = parseBashDemoInput(inputText);
+        if (parsedInput.error) {
+          return { ok: false, outputText: 'Warnings / Limits\n' + parsedInput.error, matchRanges: [], warnings: [parsedInput.error], errors: [] };
+        }
+        const expression = anatomy.expression || '';
+        let args = parsedInput.args.slice();
+        const arrayValues = parseBashArrayLiteral(expression);
+        const setArgs = parseSimpleSetArgs(expression);
+        const shiftCount = parseSimpleShift(expression);
+        if (setArgs) args = setArgs;
+        if (shiftCount > 0) args = args.slice(Math.min(shiftCount, args.length));
+
+        const sections = [];
+        sections.push('Demonstration');
+        sections.push('This app demonstrates selected Bash expansions with small JavaScript transforms. It does not run arbitrary Bash.');
+        sections.push('');
+        sections.push('Positional Parameters');
+        sections.push('$# = ' + args.length);
+        args.forEach((arg, index) => sections.push('$' + (index + 1) + ' = ' + arg));
+        if (!args.length) sections.push('(no positional parameters)');
+        sections.push('');
+        sections.push('Expansion View');
+
+        let demonstrated = false;
+        if (expression.includes('"$@"')) {
+          demonstrated = true;
+          sections.push('"$@" expands as separate words:');
+          sections.push.apply(sections, renderPrintfWords(args));
+        }
+        if (/(^|[^\"])\$@(?![A-Za-z0-9_])/.test(expression)) {
+          demonstrated = true;
+          sections.push('$@ unquoted is shown after simple word splitting:');
+          sections.push.apply(sections, renderPrintfWords(splitUnquotedWords(args)));
+          warnings.push('Unquoted $@ is usually unsafe because word splitting and globbing can change arguments.');
+        }
+        if (expression.includes('"$*"')) {
+          demonstrated = true;
+          sections.push('"$*" expands as one joined word:');
+          sections.push.apply(sections, renderPrintfWords([args.join(' ')]));
+        }
+        if (/(^|[^\"])\$\*(?![A-Za-z0-9_])/.test(expression)) {
+          demonstrated = true;
+          sections.push('$* unquoted is shown after simple joining and splitting:');
+          sections.push.apply(sections, renderPrintfWords(splitUnquotedWords([args.join(' ')])));
+          warnings.push('Unquoted $* has the same word-splitting/globbing hazards as other unquoted expansions.');
+        }
+        if (/\$#/.test(expression)) {
+          demonstrated = true;
+          sections.push('$# expands to ' + args.length + '.');
+        }
+        const positionalMatches = Array.from(expression.matchAll(/\$([1-9][0-9]?)/g)).map(match => Number(match[1]));
+        if (positionalMatches.length) {
+          demonstrated = true;
+          uniqueSorted(positionalMatches.map(String)).forEach(indexText => {
+            const index = Number(indexText);
+            sections.push('$' + index + ' expands to ' + (args[index - 1] !== undefined ? args[index - 1] : '(unset)') + '.');
+          });
+        }
+        if (arrayValues) {
+          demonstrated = true;
+          sections.push('arr has ' + arrayValues.length + ' element(s): ' + arrayValues.map(quoteForView).join(', '));
+          if (expression.includes('"${arr[@]}"')) {
+            sections.push('"${arr[@]}" expands as separate words:');
+            sections.push.apply(sections, renderPrintfWords(arrayValues));
+          }
+          if (expression.includes('"${arr[*]}"')) {
+            sections.push('"${arr[*]}" expands as one joined word:');
+            sections.push.apply(sections, renderPrintfWords([arrayValues.join(' ')]));
+          }
+        }
+        if (/\$\?|\$\$|\$!|\$_|\$-/.test(expression)) {
+          demonstrated = true;
+          if (expression.includes('$?')) sections.push('$? is the previous command status; this demo cannot know a real shell status.');
+          if (expression.includes('$$')) sections.push('$$ is the current shell PID concept; subshell details are not modeled.');
+          if (expression.includes('$!')) sections.push('$! needs a real background job to be meaningful.');
+          if (expression.includes('$_')) sections.push('$_ is context-sensitive and slippery; it changes as commands run.');
+          if (expression.includes('$-')) sections.push('$- reports shell option flags in a real shell.');
+          warnings.push('Shell state parameters require a real Bash shell for exact values.');
+        }
+        if (/\[\[|\]\]|\(\(|\)\)|\b(local|return|export|unset|read|declare|shopt|echo)\b|\w+\s*\(\)\s*\{/.test(expression)) {
+          warnings.push('External commands, pipelines, redirects, functions, conditionals, and broad shell state are intentionally out of scope.');
+        }
+        if (!demonstrated) sections.push('No live expansion recognized. The anatomy cards explain recognized Bash syntax, but a real Bash shell is required for execution.');
+
+        sections.push('');
+        sections.push('Warnings / Limits');
+        uniqueNotes(warnings).forEach(warning => sections.push('- ' + warning));
+        return { ok: true, outputText: sections.join('\n'), matchRanges: [], warnings: uniqueNotes(warnings), errors: [] };
+      }
+
+      function summarizeBashExpression(anatomy) {
+        const expression = (anatomy && anatomy.expression) || '';
+        if (!expression) return '';
+        if (expression.includes('"$@"')) return 'Demonstrate how quoted "$@" preserves positional argument boundaries.';
+        if (/(^|[^\"])\$@(?![A-Za-z0-9_])/.test(expression)) return 'Demonstrate unquoted $@ and warn about word splitting and globbing.';
+        if (expression.includes('"$*"')) return 'Demonstrate how quoted "$*" joins positional arguments into one word.';
+        if (expression.includes('arr=(')) return 'Inspect a simple Bash indexed array and selected array expansions.';
+        if (/\b(set --|shift)\b/.test(expression)) return 'Demonstrate simple positional-parameter mutation.';
+        return 'Explain recognized Bash syntax without pretending to run a full shell.';
+      }
+
+      function explainBashExpression(expression) {
+        return parseBashExpression(expression);
+      }
+
+      function bashEntry(id, title, snippet, type, category, description, tags, insertMode, notes, supported, exampleInput, exampleOutput, placeholders) {
+        return {
+          id,
+          title,
+          snippet,
+          type,
+          category,
+          description,
+          tags: tags || [],
+          insertMode: insertMode || 'replace-command',
+          notes: notes || '',
+          dialect: 'bash',
+          support: normalizeSupportLevel(supported),
+          requires: [],
+          exampleInput: exampleInput || '',
+          exampleOutput: exampleOutput || '',
+          placeholders: placeholders || []
+        };
+      }
+
+      function collectBashChunks(expression, chunks, warnings) {
+        const tokenRules = [
+          { regex: /"\$@"/g, label: '"$@"', title: 'Quoted all arguments', explanation: 'Expands each positional parameter as a separate word.', warning: '"$@" preserves argument boundaries.', support: 'live' },
+          { regex: /(?<![\"])\$@(?![A-Za-z0-9_])/g, label: '$@', title: 'Unquoted all arguments', explanation: 'Expands positional parameters unquoted.', warning: 'Unquoted $@ is usually unsafe because word splitting and globbing can change arguments.', support: 'live' },
+          { regex: /"\$\*"/g, label: '"$*"', title: 'Quoted joined arguments', explanation: 'Expands positional parameters as one joined word.', warning: '"$*" joins positional parameters into one word when quoted.', support: 'live' },
+          { regex: /(?<![\"])\$\*(?![A-Za-z0-9_])/g, label: '$*', title: 'Unquoted joined arguments', explanation: 'Expands positional parameters unquoted after joining.', warning: 'Unquoted $* is subject to word splitting and globbing.', support: 'live' },
+          { regex: /\$#/g, label: '$#', title: 'Argument count', explanation: 'Number of positional parameters.', support: 'live' },
+          { regex: /\$\?/g, label: '$?', title: 'Previous status', explanation: 'Exit status of the previous command.', warning: '$? changes after almost every command.', support: 'partial' },
+          { regex: /\$\$/g, label: '$$', title: 'Shell PID concept', explanation: 'Process ID concept for the current shell.', warning: '$$ has caveats in subshell contexts.', support: 'partial' },
+          { regex: /\$!/g, label: '$!', title: 'Background PID concept', explanation: 'PID of the most recent background pipeline.', warning: 'Needs a real shell job table.', support: 'partial' },
+          { regex: /\$_/g, label: '$_', title: 'Last argument concept', explanation: 'Context-sensitive last argument value.', warning: '$_ is volatile and slippery.', support: 'partial' },
+          { regex: /\$-/g, label: '$-', title: 'Shell option flags', explanation: 'Current shell option flags.', support: 'partial' },
+          { regex: /\$0|\$[1-9][0-9]?/g, label: null, title: 'Positional parameter', explanation: 'Names one positional parameter by number.', support: 'live' },
+          { regex: /set\s+--/g, label: 'set --', title: 'Replace positional parameters', explanation: 'Replaces the current positional parameter list.', support: 'live' },
+          { regex: /\bshift\b/g, label: 'shift', title: 'Shift positional parameters', explanation: 'Discards leading positional parameters.', support: 'live' },
+          { regex: /\w+\s*\(\)\s*\{/g, label: null, title: 'Function definition', explanation: 'Defines a Bash function body.', warning: 'Function execution is only explained, not run.', support: 'partial' },
+          { regex: /\blocal\b/g, label: 'local', title: 'Function-local variable', explanation: 'Declares a variable local to a Bash function.', support: 'partial' },
+          { regex: /\breturn\b/g, label: 'return', title: 'Function return', explanation: 'Returns from a function with a status.', support: 'partial' },
+          { regex: /\[\[[\s\S]*?\]\]/g, label: null, title: 'Bash conditional', explanation: 'Bash [[ ... ]] conditional expression.', warning: 'Conditional evaluation is not executed here.', support: 'partial' },
+          { regex: /\(\([\s\S]*?\)\)/g, label: null, title: 'Arithmetic context', explanation: 'Bash integer arithmetic context.', warning: 'Arithmetic state is not executed here.', support: 'partial' },
+          { regex: /\b\w+=\([^)]*\)/g, label: null, title: 'Indexed array', explanation: 'Simple indexed array assignment.', support: 'live' },
+          { regex: /"\$\{arr\[@\]\}"/g, label: '"${arr[@]}"', title: 'Array elements', explanation: 'Quoted array-at expands elements as separate words.', support: 'live' },
+          { regex: /"\$\{arr\[\*\]\}"/g, label: '"${arr[*]}"', title: 'Joined array elements', explanation: 'Quoted array-star joins elements into one word.', support: 'live' },
+          { regex: /\b(declare\s+-A|export|unset|read\s+-r|printf|echo|shopt(?:\s+-s\s+(?:nullglob|dotglob|globstar|nocasematch))?)\b/g, label: null, title: 'Bash builtin/reference', explanation: 'Recognized Bash builtin or shell behavior switch.', warning: 'Reference-only unless the demo explicitly handles it.', support: 'reference' },
+          { regex: /'[^']*'/g, label: null, title: 'Single quotes', explanation: 'Single quotes preserve literal text until the next single quote.', support: 'live' },
+          { regex: /"(?:\\.|[^"])*"/g, label: null, title: 'Double quotes', explanation: 'Double quotes group text while still allowing parameter expansion in real Bash.', support: 'live' }
+        ];
+        tokenRules.forEach(rule => {
+          let match;
+          rule.regex.lastIndex = 0;
+          while ((match = rule.regex.exec(expression)) !== null) {
+            const text = rule.label || match[0];
+            addBashChunk(chunks, text, rule.title, rule.explanation, rule.warning || '', rule.support);
+            if (rule.warning) warnings.push(rule.warning);
+            if (match[0].length === 0) rule.regex.lastIndex += 1;
+          }
+        });
+      }
+
+      function addBashChunk(chunks, text, title, explanation, warning, support) {
+        const detail = {
+          what: explanation,
+          here: 'Recognized in this Bash analyzer/demonstrator. Support level: ' + supportLabel(support || 'partial') + '.',
+          example: bashTinyExample(text, title),
+          mistake: warning || 'Do not treat this view as proof that arbitrary Bash ran.'
+        };
+        addChunk(chunks, text, title, explanation, detail);
+      }
+
+      function bashTinyExample(text, title) {
+        if (text === '"$@"') return 'With args one "two words" three, it stays three words.';
+        if (text === '$@') return 'The argument two words may split into two words when unquoted.';
+        if (text === '"$*"') return 'With three args, it becomes one joined word.';
+        if (title === 'Indexed array') return 'arr=(one "two words") has two elements.';
+        if (title === 'Single quotes') return "'two words' is one literal word in the demo args parser.";
+        if (title === 'Double quotes') return '"two words" is one word in the demo args parser.';
+        return 'Use the demo input format: args: one "two words" three';
+      }
+
+      function parseBashDemoInput(inputText) {
+        const line = (inputText || '').split('\n').find(item => /^\s*args\s*:/.test(item));
+        if (!line) return { args: [], error: null };
+        return parseBashWords(line.replace(/^\s*args\s*:\s*/, ''));
+      }
+
+      function parseSimpleSetArgs(expression) {
+        const match = expression.match(/(?:^|;)\s*set\s+--\s+([^;]+)/);
+        if (!match) return null;
+        const parsed = parseBashWords(match[1]);
+        return parsed.error ? null : parsed.args;
+      }
+
+      function parseSimpleShift(expression) {
+        const match = expression.match(/(?:^|;)\s*shift(?:\s+([0-9]+))?(?:\s*;|$)/);
+        if (!match) return 0;
+        return Math.max(1, Number(match[1] || 1));
+      }
+
+      function parseBashArrayLiteral(expression) {
+        const match = expression.match(/\b\w+=\(([^)]*)\)/);
+        if (!match) return null;
+        const parsed = parseBashWords(match[1]);
+        return parsed.error ? null : parsed.args;
+      }
+
+      function parseBashWords(text) {
+        const args = [];
+        let current = '';
+        let quote = '';
+        let hadQuoted = false;
+        let inWord = false;
+        for (let index = 0; index < text.length; index += 1) {
+          const ch = text[index];
+          if (quote) {
+            if (ch === quote) {
+              quote = '';
+              hadQuoted = true;
+              inWord = true;
+            } else if (quote === '"' && ch === '\\' && index + 1 < text.length) {
+              index += 1;
+              current += text[index];
+              inWord = true;
+            } else {
+              current += ch;
+              inWord = true;
+            }
+            continue;
+          }
+          if (ch === "'" || ch === '"') {
+            quote = ch;
+            hadQuoted = true;
+            inWord = true;
+            continue;
+          }
+          if (ch === '\\' && index + 1 < text.length) {
+            index += 1;
+            current += text[index];
+            inWord = true;
+            continue;
+          }
+          if (/\s/.test(ch)) {
+            if (inWord || hadQuoted) {
+              args.push(current);
+              current = '';
+              hadQuoted = false;
+              inWord = false;
+            }
+            continue;
+          }
+          current += ch;
+          inWord = true;
+        }
+        if (quote) return { args: [], error: 'Could not parse demo args: unmatched ' + quote + ' quote. This mini-parser handles only plain words, simple quotes, and simple backslashes.' };
+        if (inWord || hadQuoted) args.push(current);
+        return { args, error: null };
+      }
+
+      function renderPrintfWords(words) {
+        return words.map(word => '<' + word + '>');
+      }
+
+      function splitUnquotedWords(words) {
+        return words.join(' ').split(/\s+/).filter(Boolean);
+      }
+
+      function quoteForView(value) {
+        return value.includes(' ') || value === '' ? JSON.stringify(value) : value;
       }
 
       function parseSedExpression(expression) {
@@ -1531,6 +2523,9 @@
           expressionInput.value = expressionInput.value.slice(0, start) + entry.snippet + expressionInput.value.slice(end);
           const caret = start + entry.snippet.length;
           expressionInput.setSelectionRange(caret, caret);
+        }
+        if (entry.dialect === 'bash' && entry.exampleInput) {
+          victimText.value = entry.exampleInput;
         }
         closeTrainer();
         expressionInput.focus();
